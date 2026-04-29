@@ -1,9 +1,8 @@
-# 一键安装开机自启 - 右键"以 PowerShell 运行"
+# 一键安装开机自启 - 右键"以 PowerShell 管理员身份运行"
 
-$projectDir = "d:\04-当前任务\99-其他\99-代码测试\Work Log Management System-Personal"
+$projectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $taskName = "WorkLogSystem"
-$backendCmd = "cd /d `"$projectDir\backend`" && node server.js"
-$frontendCmd = "cd /d `"$projectDir\frontend`" && npm run dev"
+$startupBat = "$projectDir\start-bg.bat"
 
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host "  个人工作日志系统 - 开机自启安装" -ForegroundColor Cyan
@@ -18,42 +17,33 @@ if (-not $isAdmin) {
     exit
 }
 
-# 生成启动脚本
-$scriptContent = @"
-@echo off
-title WorkLog-System
-
-:: 启动后端
-start "WorkLog-Backend" cmd /c "cd /d `"$projectDir\backend`" && node server.js"
-
-:: 启动前端
-start "WorkLog-Frontend" cmd /c "cd /d `"$projectDir\frontend`" && npm run dev"
-
-:: 等一会后打开浏览器
-timeout /t 5 /nobreak >nul
-start http://localhost:10010
-"@
-
-$scriptPath = "$projectDir\startup.bat"
-Set-Content -Path $scriptPath -Value $scriptContent -Force
-
-# 用 Task Scheduler 创建开机自启任务（隐藏窗口）
-$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c start /min `"$scriptPath`""
+# 用 Task Scheduler 创建开机自启任务
+# 使用 start-bg.bat（已内置自动查找 node 路径，稳定可靠）
+$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c start /min `"$startupBat`""
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -Priority 4
 
 try {
+    # 清理旧任务
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+
     Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force
     Write-Host "[✔] 开机自启任务已创建！" -ForegroundColor Green
-
-    # 启动任务测试
-    Start-ScheduledTask -TaskName $taskName
-    Write-Host "[✔] 服务已启动！" -ForegroundColor Green
     Write-Host ""
+    Write-Host "  下次开机将自动启动服务" -ForegroundColor Cyan
     Write-Host "  访问地址: http://localhost:10010" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "  如需卸载开机自启，再次运行本脚本选择卸载即可。" -ForegroundColor Yellow
+    Write-Host "  手动启动: 双击 start-silent.vbs（无窗口）" -ForegroundColor Yellow
+    Write-Host "  手动启动: 双击 start-bg.bat（有窗口）" -ForegroundColor Yellow
+    Write-Host "  卸载自启: 右键 uninstall-startup.ps1 → 以 PowerShell 运行" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  现在启动服务? (Y/N)" -ForegroundColor Green
+    $startNow = Read-Host
+    if ($startNow -eq "Y" -or $startNow -eq "y") {
+        Start-Process -FilePath "wscript.exe" -ArgumentList "`"$projectDir\start-silent.vbs`"" -WindowStyle Hidden
+        Write-Host "[✔] 服务已在后台启动..." -ForegroundColor Green
+    }
 } catch {
     Write-Host "[✘] 创建失败: $_" -ForegroundColor Red
     pause
