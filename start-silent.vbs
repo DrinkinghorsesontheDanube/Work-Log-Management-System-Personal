@@ -1,22 +1,63 @@
-' 个人工作日志系统 - 静默启动
-' 双击运行即可，无任何窗口弹出
-' 后台启动后端和前端服务，然后自动打开浏览器
+' WorkLog Silent Launcher - Double-click to start
+' Uses absolute paths so it always works regardless of environment
 
-Dim objShell, fso, projectDir
+Dim objShell, fso, projDir, backend, frontend
 Set objShell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
-' 获取脚本所在目录（即项目根目录）
-projectDir = fso.GetParentFolderName(WScript.ScriptFullName)
+' Get project directory from script location
+projDir = fso.GetParentFolderName(WScript.ScriptFullName)
+backend = projDir & "\backend\server.js"
+frontend = projDir & "\frontend"
 
-' 静默执行启动批处理（0=隐藏窗口）
-objShell.Run """" & projectDir & "\start-bg.bat""", 0, False
+' Node.js locations to try (most likely first)
+Dim nodePaths, nodePath, npmPath, i
+nodePaths = Array( _
+    "C:\Program Files\nodejs\node.exe", _
+    "C:\Program Files (x86)\nodejs\node.exe", _
+    "node" _
+)
 
-' 等几秒让服务启动完成
+nodePath = ""
+For i = 0 To UBound(nodePaths)
+    If fso.FileExists(nodePaths(i)) Then
+        nodePath = nodePaths(i)
+        Exit For
+    End If
+Next
+
+If nodePath = "" Then
+    ' Try to find via where command
+    Dim ws, exec
+    Set ws = CreateObject("WScript.Shell")
+    On Error Resume Next
+    Set exec = ws.Exec("%comspec% /c where node")
+    If Err.Number = 0 Then
+        nodePath = exec.StdOut.ReadLine()
+        If nodePath = "" Then nodePath = "node"
+    Else
+        nodePath = "node"
+    End If
+    On Error GoTo 0
+End If
+
+' Get npm path
+Dim nodeDir, npmCmd
+nodeDir = fso.GetParentFolderName(nodePath)
+npmCmd = nodeDir & "\npm.cmd"
+If Not fso.FileExists(npmCmd) Then npmCmd = "npm"
+
+' Start backend (hidden window, 0 = hidden)
+objShell.Run """" & nodePath & """ """ & backend & """", 0, False
+
+' Wait 2 seconds
+WScript.Sleep 2000
+
+' Start frontend (hidden window)
+objShell.Run "%comspec% /c cd /d """ & frontend & """ && " & npmCmd & " run dev", 0, False
+
+' Wait 8 seconds for services to start
 WScript.Sleep 8000
 
-' 打开浏览器
+' Open browser
 objShell.Run "http://localhost:10010", 1, False
-
-Set objShell = Nothing
-Set fso = Nothing

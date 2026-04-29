@@ -1,30 +1,26 @@
 @echo off
-title 个人工作日志系统
-
-echo ====================================
-echo    个人工作日志管理系统 启动中...
-echo ====================================
-echo.
-
+title WorkLog System
 cd /d "%~dp0"
 
-echo [1/3] 启动后端服务...
+echo ====================================
+echo   Work Log Management System
+echo ====================================
+echo.
+echo [1/2] Starting backend...
 start "WorkLog-Backend" cmd /c "cd /d backend && node server.js"
 
-echo [2/3] 启动前端服务...
+echo [2/2] Starting frontend...
 start "WorkLog-Frontend" cmd /c "cd /d frontend && npm run dev"
 
-timeout /t 3 /nobreak >nul
+echo.
+echo Waiting for services...
+timeout /t 5 /nobreak >nul
 
-echo [3/3] 打开浏览器...
+echo Opening browser...
 start http://localhost:10010
 
 echo.
-echo ====================================
-echo    系统已启动！
-echo    访问地址：http://localhost:10010
-echo.
-echo    关闭终端即停止服务
-echo ====================================
+echo System started! Visit: http://localhost:10010
+echo Close this window to stop.
 echo.
 pause
