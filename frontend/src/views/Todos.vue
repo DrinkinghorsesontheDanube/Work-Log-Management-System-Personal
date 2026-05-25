@@ -151,7 +151,7 @@
       </div>
     </div>
 
-    <n-modal v-model:show="!!editingTodo" preset="card" title="编辑待办" style="width: 500px;">
+    <n-modal v-model:show="showEditTodo" preset="card" title="编辑待办" style="width: 500px;">
       <n-form>
         <n-form-item label="标题">
           <n-input v-model:value="editingTodo.newTitle" />
@@ -221,6 +221,11 @@ const projectOptions = computed(() => {
   return projects.value
     .filter(p => !p.is_closed)
     .map(p => ({ label: p.name, value: p.id }))
+})
+
+const showEditTodo = computed({
+  get: () => editingTodo.value !== null,
+  set: (value) => { if (!value) editingTodo.value = null }
 })
 
 async function loadTodos() {

@@ -333,7 +333,7 @@
         </n-grid>
 
         <!-- 编辑待办的模态框 -->
-        <n-modal v-model:show="!!editingTodo" preset="card" title="编辑待办" style="width: 420px;">
+        <n-modal v-model:show="showEditTodo" preset="card" title="编辑待办" style="width: 420px;">
           <n-form>
             <n-form-item label="标题">
               <n-input v-model:value="editingTodo.newTitle" />
@@ -436,6 +436,11 @@ const newPriority = ref('medium')
 const newDueDate = ref(null)
 const newStartTime = ref(null)
 const editingTodo = ref(null)
+
+const showEditTodo = computed({
+  get: () => editingTodo.value !== null,
+  set: (value) => { if (!value) editingTodo.value = null }
+})
 
 const projectStages = computed(() => {
   if (!project.value) return {}
@@ -830,11 +835,5 @@ async function confirmUpload() {
 
 onMounted(() => {
   loadProject()
-})
-
-watch(() => route.params.id, () => {
-  if (route.params.id) {
-    loadProject()
-  }
 })
 </script>
