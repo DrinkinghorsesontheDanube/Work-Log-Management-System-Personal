@@ -49,6 +49,108 @@
       </n-gi>
     </n-grid>
 
+    <n-card :bordered="true" size="small">
+      <template #header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <n-gradient-text type="info" style="font-size: 16px; font-weight: bold;">🤖 智能录入</n-gradient-text>
+          <n-tag v-if="aiResult" type="success" size="small" round>已生成</n-tag>
+        </div>
+      </template>
+      <n-input
+        v-model:value="aiInput"
+        type="textarea"
+        :rows="3"
+        placeholder="输入工作内容描述，AI帮你生成结构化日志，例如：今天上午给王总汇报了项目进展，下午参加了项目评审会"
+        @keydown.ctrl.enter="handleAiSubmit"
+      />
+      <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+        <n-button type="primary" :loading="aiLoading" :disabled="!aiInput.trim()" size="small" @click="handleAiSubmit">
+          <template #icon><n-icon><FlashOutline /></n-icon></template>
+          AI生成
+        </n-button>
+        <n-button v-if="aiResult" text type="primary" size="small" @click="applyAiResult">应用到日志</n-button>
+      </div>
+      <div v-if="aiResult" style="margin-top: 12px; padding: 12px; background: #f0f9ff; border-radius: 8px; font-size: 14px; line-height: 1.6;">
+        <div v-if="aiResult.title"><strong>标题：</strong>{{ aiResult.title }}</div>
+        <div v-if="aiResult.category" style="margin-top: 4px;"><strong>分类：</strong>{{ aiResult.category }}</div>
+        <div v-if="aiResult.duration" style="margin-top: 4px;"><strong>耗时：</strong>{{ aiResult.duration }}分钟</div>
+        <div v-if="aiResult.content" style="margin-top: 4px;"><strong>详情：</strong>{{ aiResult.content }}</div>
+      </div>
+    </n-card>
+
+    <n-grid :cols="2" :x-gap="16" :y-gap="16" responsive="screen">
+          <n-gi>
+            <n-card :bordered="true" size="small">
+              <template #header>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <n-gradient-text type="info" style="font-size: 16px; font-weight: bold;">📋 项目列表</n-gradient-text>
+                  <n-button text size="tiny" @click="router.push('/projects')">查看全部</n-button>
+                </div>
+              </template>
+              <n-empty v-if="ongoingProjects.length === 0" description="暂无进行中的项目" size="small" />
+              <div v-else style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto;">
+                <div
+                  v-for="project in ongoingProjects.slice(0, 5)"
+                  :key="project.id"
+                  style="padding: 12px; background: #f7fafc; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
+                  @click="router.push(`/projects/${project.id}`)"
+                  @mouseenter="$event.currentTarget.style.background = '#edf2f7'"
+                  @mouseleave="$event.currentTarget.style.background = '#f7fafc'"
+                >
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 14px; font-weight: 600; color: #2d3748; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ project.name }}</div>
+                      <div v-if="project.customer" style="font-size: 12px; color: #718096; margin-top: 2px;">{{ project.customer }}</div>
+                    </div>
+                    <n-tag :type="project.is_closed ? 'default' : 'success'" size="small" round>{{ project.is_closed ? '已完结' : project.stage_label }}</n-tag>
+                  </div>
+                  <div v-if="getProjectTodos(project.id).length > 0" style="margin-top: 8px;">
+                    <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #718096;">
+                      <span>待办:</span>
+                      <n-tag type="info" size="tiny" round>{{ getProjectTodos(project.id).length }}</n-tag>
+                      <span v-if="getProjectTodos(project.id).filter(t => t.priority === 'high').length > 0">
+                        <n-tag type="error" size="tiny" round>高危: {{ getProjectTodos(project.id).filter(t => t.priority === 'high').length }}</n-tag>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </n-card>
+          </n-gi>
+          <n-gi>
+            <n-card :bordered="true" size="small">
+              <template #header>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <n-gradient-text type="info" style="font-size: 16px; font-weight: bold;">✅ 待办事项</n-gradient-text>
+                  <n-button text size="tiny" @click="router.push('/todos')">查看全部</n-button>
+                </div>
+              </template>
+              <n-empty v-if="pendingTodos.length === 0" description="太棒了！暂无待办" size="small" />
+              <div v-else style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto;">
+                <div
+                  v-for="todo in pendingTodos.slice(0, 5)"
+                  :key="todo.id"
+                  style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: #f7fafc; border-radius: 8px; transition: all 0.2s;"
+                  @mouseenter="$event.currentTarget.style.background = '#edf2f7'"
+                  @mouseleave="$event.currentTarget.style.background = '#f7fafc'"
+                >
+                  <n-checkbox :checked="todo.status === 'done'" @update:checked="toggleTodo(todo, $event)" />
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-size: 14px; font-weight: 500; color: #2d3748; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ todo.title }}</span>
+                      <n-tag v-if="todo.project_name" type="info" size="tiny" round @click.stop="router.push(`/projects/${todo.related_project_id}`)" style="cursor: pointer;">{{ todo.project_name }}</n-tag>
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-top: 4px; flex-wrap: wrap;">
+                      <span v-if="todo.due_date" style="font-size: 12px; color: #718096;">截止: {{ todo.due_date }}</span>
+                      <span v-if="todo.priority === 'high'" style="font-size: 12px; color: #e53e3e;">高优先级</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </n-card>
+          </n-gi>
+        </n-grid>
+
     <n-alert v-if="todayStats.count === 0" type="info" closable>
       今天还没有工作记录，点击「快速记一笔」开始记录吧！
     </n-alert>
@@ -158,11 +260,13 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useMessage, useDialog } from 'naive-ui'
-import { AddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
-import { getLogs, createLog, updateLog, deleteLog, getCategories, getProjects } from '../api/index.js'
+import { AddOutline, CreateOutline, TrashOutline, FlashOutline } from '@vicons/ionicons5'
+import { getLogs, createLog, updateLog, deleteLog, getCategories, getProjects, createAiEntry, getTodos, updateTodo } from '../api/index.js'
 import dayjs from 'dayjs'
 
+const router = useRouter()
 const message = useMessage()
 const dialog = useDialog()
 const showQuickEntry = ref(false)
@@ -174,6 +278,11 @@ const projects = ref([])
 const timerRunning = ref(false)
 const timerSeconds = ref(0)
 let timerInterval = null
+
+const aiInput = ref('')
+const aiLoading = ref(false)
+const aiResult = ref(null)
+const pendingTodos = ref([])
 
 const todayStr = computed(() => dayjs().format('YYYY年MM月DD日 dddd'))
 const isRemedy = ref(false)
@@ -208,6 +317,14 @@ const projectOptions = computed(() => {
     .filter(p => !p.is_closed)
     .map(p => ({ label: `${p.name} (${p.customer || '无客户'})`, value: p.id }))
 })
+
+const ongoingProjects = computed(() => {
+  return projects.value.filter(p => !p.is_closed)
+})
+
+function getProjectTodos(projectId) {
+  return pendingTodos.value.filter(todo => todo.related_project_id === projectId)
+}
 
 const todayStats = computed(() => {
   const logs = todayLogs.value
@@ -375,6 +492,52 @@ async function handleDelete(id) {
   }
 }
 
+async function handleAiSubmit() {
+  if (!aiInput.value.trim()) return
+  aiLoading.value = true
+  try {
+    const res = await createAiEntry({ text: aiInput.value })
+    aiResult.value = res.data
+    message.success('AI生成成功')
+  } catch (e) {
+    message.error('AI生成失败：' + (e.response?.data?.error || e.message))
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+function applyAiResult() {
+  if (!aiResult.value) return
+  form.value.title = aiResult.value.title || ''
+  form.value.content = aiResult.value.content || ''
+  form.value.duration = aiResult.value.duration ? parseInt(aiResult.value.duration) : null
+  if (aiResult.value.category) {
+    form.value.category = aiResult.value.category
+  }
+  showQuickEntry.value = true
+  aiInput.value = ''
+  aiResult.value = null
+}
+
+async function loadTodos() {
+  try {
+    const res = await getTodos({ status: 'pending' })
+    pendingTodos.value = res.data
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+async function toggleTodo(todo, checked) {
+  try {
+    await updateTodo(todo.id, { status: checked ? 'done' : 'pending' })
+    message.success(checked ? '已完成' : '已退回待办')
+    await loadTodos()
+  } catch (e) {
+    message.error('更新失败')
+  }
+}
+
 watch(showQuickEntry, (val) => {
   if (!val) resetForm()
 })
@@ -383,5 +546,6 @@ onMounted(() => {
   loadTodayLogs()
   loadCategories()
   loadProjects()
+  loadTodos()
 })
 </script>

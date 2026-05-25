@@ -153,7 +153,7 @@
           </div>
         </n-card>
 
-        <n-grid :cols="2" :x-gap="16">
+        <n-grid :cols="3" :x-gap="16">
           <n-gi>
             <n-card :bordered="true" title="工作时间线" size="small">
               <n-empty v-if="!project.logs || project.logs.length === 0" description="暂无日志" />
@@ -173,6 +173,86 @@
                   <div style="font-size: 12px; color: #888;">{{ log.duration_min }}分钟</div>
                 </n-timeline-item>
               </n-timeline>
+            </n-card>
+          </n-gi>
+
+          <n-gi>
+            <n-card :bordered="true" title="待办事项" size="small">
+              <div style="margin-bottom: 12px;">
+                <n-input
+                  v-model:value="newTodo"
+                  type="textarea"
+                  :autosize="{ minRows: 1, maxRows: 2 }"
+                  placeholder="添加新待办"
+                  @keydown.ctrl.enter.prevent="handleCreateTodo"
+                />
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px;">
+                  <n-space size="small">
+                    <n-select
+                      v-model:value="newPriority"
+                      :options="priorityOptions"
+                      placeholder="优先级"
+                      style="width: 100px;"
+                      size="small"
+                    />
+                    <n-date-picker
+                      v-model:value="newDueDate"
+                      type="date"
+                      placeholder="完成时间"
+                      clearable
+                      size="small"
+                      style="width: 130px;"
+                    />
+                  </n-space>
+                  <n-button type="primary" :disabled="!newTodo.trim()" :loading="saving" size="small" @click="handleCreateTodo">
+                    <template #icon><n-icon><AddOutline /></n-icon></template>
+                    添加
+                  </n-button>
+                </div>
+              </div>
+
+              <n-empty v-if="todos.length === 0" description="暂无待办" />
+              <div v-else style="display: flex; flex-direction: column; gap: 8px;">
+                <div
+                  v-for="todo in todos"
+                  :key="todo.id"
+                  style="padding: 10px 12px; background: #fafbfc; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: flex-start; gap: 10px;"
+                >
+                  <n-checkbox :checked="todo.status === 'done'" @update:checked="toggleTodo(todo, $event)" />
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <strong
+                        :style="{
+                          color: todo.status === 'done' ? '#a0aec0' : '#2d3748',
+                          textDecoration: todo.status === 'done' ? 'line-through' : 'none'
+                        }"
+                      >{{ todo.title }}</strong>
+                      <n-tag v-if="todo.priority === 'high'" type="error" size="tiny" round>高</n-tag>
+                      <n-tag v-else-if="todo.priority === 'low'" type="default" size="tiny" round>低</n-tag>
+                    </div>
+                    <div v-if="todo.detail" style="font-size: 13px; color: #666;">{{ todo.detail }}</div>
+                    <div v-if="todo.due_date" style="font-size: 12px; color: #999; margin-top: 4px;">
+                      <span style="display: flex; align-items: center; gap: 4px;">
+                        <n-icon size="12"><TimeOutline /></n-icon>
+                        截止: {{ todo.due_date }}
+                      </span>
+                    </div>
+                  </div>
+                  <n-space size="small">
+                    <n-button quaternary size="tiny" @click="startEditTodo(todo)">
+                      <template #icon><n-icon size="14"><CreateOutline /></n-icon></template>
+                    </n-button>
+                    <n-popconfirm @positive-click="handleDeleteTodo(todo.id)">
+                      <template #trigger>
+                        <n-button quaternary size="tiny" type="error">
+                          <template #icon><n-icon size="14"><TrashOutline /></n-icon></template>
+                        </n-button>
+                      </template>
+                      确认删除？
+                    </n-popconfirm>
+                  </n-space>
+                </div>
+              </div>
             </n-card>
           </n-gi>
 
@@ -251,6 +331,36 @@
             </n-card>
           </n-gi>
         </n-grid>
+
+        <!-- 编辑待办的模态框 -->
+        <n-modal v-model:show="!!editingTodo" preset="card" title="编辑待办" style="width: 420px;">
+          <n-form>
+            <n-form-item label="标题">
+              <n-input v-model:value="editingTodo.newTitle" />
+            </n-form-item>
+            <n-form-item label="详情">
+              <n-input v-model:value="editingTodo.newDetail" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }" />
+            </n-form-item>
+            <n-grid :cols="2" :x-gap="12">
+              <n-gi>
+                <n-form-item label="优先级">
+                  <n-select v-model:value="editingTodo.newPriority" :options="priorityOptions" />
+                </n-form-item>
+              </n-gi>
+              <n-gi>
+                <n-form-item label="截止时间">
+                  <n-date-picker v-model:value="editingTodo.newDueDate" type="date" clearable style="width: 100%;" />
+                </n-form-item>
+              </n-gi>
+            </n-grid>
+          </n-form>
+          <template #footer>
+            <n-space justify="end">
+              <n-button @click="editingTodo = null">取消</n-button>
+              <n-button type="primary" :loading="saving" @click="saveEditTodo">保存</n-button>
+            </n-space>
+          </template>
+        </n-modal>
       </div>
     </n-spin>
 
@@ -305,8 +415,9 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useMessage, useDialog } from 'naive-ui'
-import { ArrowBackOutline, CloudUploadOutline, DownloadOutline, TrashOutline, AddOutline, CloseOutline, ChevronUpOutline, ChevronDownOutline } from '@vicons/ionicons5'
-import { getProject, updateProject, deleteProject, uploadFile, deleteDocument, updateProjectStages } from '../api/index.js'
+import { ArrowBackOutline, CloudUploadOutline, DownloadOutline, TrashOutline, AddOutline, CloseOutline, ChevronUpOutline, ChevronDownOutline, CreateOutline, TimeOutline, PlayCircleOutline, CheckmarkCircleOutline } from '@vicons/ionicons5'
+import { getProject, updateProject, deleteProject, uploadFile, deleteDocument, updateProjectStages, getTodos, createTodo, updateTodo, deleteTodo } from '../api/index.js'
+import dayjs from 'dayjs'
 
 const router = useRouter()
 const route = useRoute()
@@ -317,6 +428,14 @@ const saving = ref(false)
 const showEdit = ref(false)
 const project = ref(null)
 const editFormRef = ref(null)
+
+// 待办事项相关
+const todos = ref([])
+const newTodo = ref('')
+const newPriority = ref('medium')
+const newDueDate = ref(null)
+const newStartTime = ref(null)
+const editingTodo = ref(null)
 
 const projectStages = computed(() => {
   if (!project.value) return {}
@@ -382,6 +501,12 @@ const uploading = ref(false)
 
 const showAddMember = ref(false)
 const newMemberName = ref('')
+
+const priorityOptions = [
+  { label: '高优先级', value: 'high' },
+  { label: '中优先级', value: 'medium' },
+  { label: '低优先级', value: 'low' }
+]
 
 function confirmAddMember() {
   const name = newMemberName.value.trim()
@@ -489,11 +614,107 @@ async function loadProject() {
         project.value = res2.data
       }
     }
+    await loadTodos()
   } catch (e) {
     message.error('加载项目失败')
     router.push('/projects')
   } finally {
     loading.value = false
+  }
+}
+
+async function loadTodos() {
+  try {
+    const res = await getTodos({ project_id: route.params.id })
+    todos.value = res.data
+  } catch (e) {
+    console.error('加载待办失败', e)
+  }
+}
+
+async function handleCreateTodo() {
+  const text = newTodo.value.trim()
+  if (!text) return
+  saving.value = true
+  try {
+    const dueDate = newDueDate.value ? dayjs(newDueDate.value).format('YYYY-MM-DD') : null
+    const startTime = newStartTime.value ? dayjs(newStartTime.value).format('HH:mm') : null
+
+    await createTodo({
+      title: text,
+      detail: '',
+      due_date: dueDate,
+      priority: newPriority.value,
+      start_time: startTime,
+      related_project_id: route.params.id
+    })
+
+    newTodo.value = ''
+    newPriority.value = 'medium'
+    newDueDate.value = null
+    newStartTime.value = null
+    message.success('待办已添加')
+    await loadTodos()
+  } catch (e) {
+    message.error('添加失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function toggleTodo(todo, checked) {
+  try {
+    await updateTodo(todo.id, { status: checked ? 'done' : 'pending' })
+    message.success(checked ? '已完成' : '已退回待办')
+    await loadTodos()
+  } catch (e) {
+    message.error('更新失败')
+  }
+}
+
+function startEditTodo(todo) {
+  editingTodo.value = {
+    ...todo,
+    newTitle: todo.title,
+    newDetail: todo.detail,
+    newDueDate: todo.due_date ? dayjs(todo.due_date).valueOf() : null,
+    newStartTime: todo.start_time ? dayjs(`2000-01-01 ${todo.start_time}`).valueOf() : null,
+    newPriority: todo.priority
+  }
+}
+
+async function saveEditTodo() {
+  if (!editingTodo.value) return
+  saving.value = true
+  try {
+    const dueDate = editingTodo.value.newDueDate ? dayjs(editingTodo.value.newDueDate).format('YYYY-MM-DD') : null
+    const startTime = editingTodo.value.newStartTime ? dayjs(editingTodo.value.newStartTime).format('HH:mm') : null
+
+    await updateTodo(editingTodo.value.id, {
+      title: editingTodo.value.newTitle,
+      detail: editingTodo.value.newDetail,
+      due_date: dueDate,
+      start_time: startTime,
+      priority: editingTodo.value.newPriority
+    })
+
+    message.success('更新成功')
+    editingTodo.value = null
+    await loadTodos()
+  } catch (e) {
+    message.error('更新失败')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function handleDeleteTodo(todoId) {
+  try {
+    await deleteTodo(todoId)
+    message.success('已删除')
+    await loadTodos()
+  } catch (e) {
+    message.error('删除失败')
   }
 }
 
@@ -609,5 +830,11 @@ async function confirmUpload() {
 
 onMounted(() => {
   loadProject()
+})
+
+watch(() => route.params.id, () => {
+  if (route.params.id) {
+    loadProject()
+  }
 })
 </script>
