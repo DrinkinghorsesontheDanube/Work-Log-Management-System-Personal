@@ -70,7 +70,10 @@ export const useProjectsStore = defineStore('projects', () => {
       endDate: input.endDate || '',
       status: input.status || 'planning',
       currentPhaseId: input.currentPhaseId || phases.value[0]?.id || 'initiation',
-      phaseHistory: input.phaseHistory || []
+      phaseHistory: input.phaseHistory || [],
+      clientId: input.clientId || null,
+      budget: input.budget ?? 0,
+      manager: input.manager || ''
     })
   }
 
