@@ -301,6 +301,21 @@ function recalcParentProgress(parentId: string | null | undefined) {
     else if (avgProgress > 0) status = 'in_progress'
     planTasks.value[idx] = { ...planTasks.value[idx], progress: avgProgress, status, updatedAt: new Date().toISOString() }
   }
+  recalcParentActualDates(parentId)
+}
+
+function recalcParentActualDates(parentId: string | null | undefined) {
+  if (!parentId) return
+  const children = planTasks.value.filter(t => t.parentId === parentId)
+  if (children.length === 0) return
+  const starts = children.map(c => c.actualStartDate).filter(Boolean) as string[]
+  const ends = children.map(c => c.actualEndDate).filter(Boolean) as string[]
+  const idx = planTasks.value.findIndex(t => t.id === parentId)
+  if (idx === -1) return
+  const parent = planTasks.value[idx]
+  const actualStart = starts.length > 0 ? starts.sort()[0] : parent.actualStartDate
+  const actualEnd = ends.length > 0 ? ends.sort().reverse()[0] : parent.actualEndDate
+  planTasks.value[idx] = { ...parent, actualStartDate: actualStart, actualEndDate: actualEnd, updatedAt: new Date().toISOString() }
 }
 
 function onStartDateChange() {
@@ -571,23 +586,32 @@ onMounted(() => {
             <div v-if="projectPlanTasks.length === 0" class="card-empty">暂无计划任务</div>
             <template v-for="task in projectPlanTasks" :key="task.id">
               <div :class="['plan-item', { 'is-child': task.parentId !== null }]" @click="openEditPlan(task)">
-                <span :class="['plan-dot', task.status]"></span>
-                <span class="plan-name">{{ task.name }}</span>
-                <span v-if="getTaskTodoCount(task.id) > 0" class="plan-todo-badge" :title="getTaskTodoDone(task.id) + '/' + getTaskTodoCount(task.id) + ' 待办完成'">
-                  {{ getTaskTodoDone(task.id) }}/{{ getTaskTodoCount(task.id) }}
-                </span>
-                <span class="plan-date">{{ task.startDate.slice(5) }}~{{ task.endDate.slice(5) }}</span>
-                <div class="plan-progress">
-                  <div class="progress-track"><div class="progress-fill" :style="{ width: task.progress + '%' }"></div></div>
-                  <span class="plan-pct">{{ task.progress }}%</span>
+                <div class="plan-row-top">
+                  <span :class="['plan-dot', task.status]"></span>
+                  <span class="plan-name">{{ task.name }}</span>
+                  <span v-if="getTaskTodoCount(task.id) > 0" class="plan-todo-badge" :title="getTaskTodoDone(task.id) + '/' + getTaskTodoCount(task.id) + ' 待办完成'">
+                    {{ getTaskTodoDone(task.id) }}/{{ getTaskTodoCount(task.id) }}
+                  </span>
+                  <div class="plan-progress">
+                    <div class="progress-track"><div class="progress-fill" :style="{ width: task.progress + '%' }"></div></div>
+                    <span class="plan-pct">{{ task.progress }}%</span>
+                  </div>
+                  <span :class="['plan-countdown', getTaskDeadlineLevel(task)]">{{ getTaskCountdown(task) }}</span>
+                  <button v-if="task.parentId === null" class="btn-icon" @click.stop="openAddPlan(task.id)" title="添加子任务">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  </button>
+                  <button class="btn-icon" @click.stop="deletePlan(task.id)" title="删除">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
                 </div>
-                <span :class="['plan-countdown', getTaskDeadlineLevel(task)]">{{ getTaskCountdown(task) }}</span>
-                <button v-if="task.parentId === null" class="btn-icon" @click.stop="openAddPlan(task.id)" title="添加子任务">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                </button>
-                <button class="btn-icon" @click.stop="deletePlan(task.id)" title="删除">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
+                <div class="plan-row-bottom">
+                  <span class="plan-tag plan">计划</span>
+                  <span class="plan-date">{{ task.startDate.slice(5) }}~{{ task.endDate.slice(5) }}</span>
+                  <template v-if="task.actualStartDate">
+                    <span class="plan-tag actual">实际</span>
+                    <span class="plan-date actual">{{ task.actualStartDate.slice(5) }}~{{ task.actualEndDate?.slice(5) || '进行中' }}</span>
+                  </template>
+                </div>
               </div>
             </template>
           </div>
@@ -734,12 +758,12 @@ onMounted(() => {
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="form-field">
-              <label>实际开始</label>
-              <input v-model="planActualStart" type="date" class="input" />
+              <label>实际开始<span v-if="editingHasChildren" style="font-size:10px;color:var(--text-muted);margin-left:4px">· 子任务自动计算</span></label>
+              <input v-model="planActualStart" type="date" class="input" :disabled="editingHasChildren" />
             </div>
             <div class="form-field">
-              <label>实际结束</label>
-              <input v-model="planActualEnd" type="date" class="input" />
+              <label>实际结束<span v-if="editingHasChildren" style="font-size:10px;color:var(--text-muted);margin-left:4px">· 子任务自动计算</span></label>
+              <input v-model="planActualEnd" type="date" class="input" :disabled="editingHasChildren" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -910,27 +934,40 @@ onMounted(() => {
 .plan-toolbar { display: flex; gap: 6px; align-items: center; }
 .import-btn { cursor: pointer; }
 .plan-split { display: grid; grid-template-columns: 400px 1fr; gap: 12px; }
-.plan-list { display: flex; flex-direction: column; gap: 3px; height: 450px; overflow-y: auto; }
+.plan-list { display: flex; flex-direction: column; gap: 6px; height: 450px; overflow-y: auto; padding: 2px; }
 .plan-item {
-  display: flex; align-items: center; gap: 5px; padding: 4px 6px;
-  border: 1px solid var(--border-light); border-radius: var(--radius-sm);
-  cursor: pointer; transition: all 0.12s; font-size: 13px;
+  display: flex; flex-direction: column; gap: 4px; padding: 8px 10px;
+  border: 1px solid var(--border-light); border-radius: var(--radius);
+  cursor: pointer; transition: all 0.15s; font-size: 13px;
 }
-.plan-item.is-child { padding-left: 24px; background: var(--bg); border-style: dashed; }
-.plan-item:hover { border-color: var(--primary); box-shadow: var(--shadow-xs); }
+.plan-item.is-child { padding-left: 26px; background: var(--bg); border-style: dashed; }
+.plan-item:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); background: var(--bg-hover, #fafbff); }
+.plan-row-top { display: flex; align-items: center; gap: 3px; }
+.plan-row-bottom { display: flex; align-items: center; padding-left: 14px; margin-top: 2px; }
+.plan-tag {
+  font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; letter-spacing: 0.3px;
+}
+.plan-tag.plan { color: var(--text-muted); background: var(--bg); margin-right: 0; }
+.plan-tag.actual { color: #b45309; background: #fef3c7; margin-right: 0; margin-left: 28px; }
 .plan-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .plan-dot.pending { background: #94a3b8; }
 .plan-dot.in_progress { background: #22c55e; }
 .plan-dot.completed { background: #3b82f6; }
-.plan-name { flex: 1; font-size: 12.5px; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.plan-date { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
-.plan-progress { display: flex; align-items: center; gap: 4px; width: 72px; flex-shrink: 0; }
+.plan-name { flex: 1; font-size: 13px; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; margin-left: 0; }
+.plan-date { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+.plan-date.actual { color: #b45309; font-weight: 500; }
+.plan-progress { display: flex; align-items: center; gap: 3px; width: 64px; flex-shrink: 0; margin-left: 2px; }
 .plan-pct { font-size: 11px; font-weight: 600; color: var(--primary); min-width: 26px; }
 .plan-countdown { font-size: 10px; font-weight: 600; min-width: 48px; text-align: right; flex-shrink: 0; }
 .plan-countdown.normal { color: var(--text-muted); }
 .plan-countdown.warning { color: #d97706; }
 .plan-countdown.urgent { color: #dc2626; }
 .plan-countdown.overdue { color: #dc2626; }
+.plan-todo-badge {
+  font-size: 10px; font-weight: 600; color: var(--primary);
+  background: #eef2ff; padding: 1px 7px;
+  border-radius: var(--radius-full); flex-shrink: 0; margin-left: 2px;
+}
 .deadline-banner {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   padding: 8px 14px; background: #fef3c7; border-top: 1px solid #fde68a;
@@ -963,11 +1000,6 @@ onMounted(() => {
 .ai-task-name { flex: 1; color: var(--text); }
 .ai-task-date { font-size: 11px; color: var(--text-muted); }
 
-.plan-todo-badge {
-  font-size: 10px; font-weight: 600; color: var(--primary);
-  background: var(--primary-light, #eef2ff); padding: 1px 6px;
-  border-radius: var(--radius-full); flex-shrink: 0;
-}
 .linked-todos-section {
   margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-light);
 }
