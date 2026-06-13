@@ -1,4 +1,4 @@
-import type { Client, Project, WorkLog, Todo, PhaseRecord } from '../types'
+import type { Client, Project, WorkLog, Todo, PhaseRecord, PlanTask } from '../types'
 import { storage } from './storage'
 
 function id(prefix: string, n: number) {
@@ -307,8 +307,38 @@ export function seedAllData() {
     }
   ]
 
+  const planTasks: PlanTask[] = [
+    { id: id('plan', 1), projectId: id('proj', 1), name: '需求调研与数据摸底', startDate: daysAgo(60), endDate: daysAgo(40), progress: 100, status: 'completed', order: 0, createdAt: iso(daysAgo(60)), updatedAt: iso(daysAgo(40)) },
+    { id: id('plan', 2), projectId: id('proj', 1), name: '数据标准与接口规范制定', startDate: daysAgo(42), endDate: daysAgo(25), progress: 100, status: 'completed', order: 1, createdAt: iso(daysAgo(42)), updatedAt: iso(daysAgo(25)) },
+    { id: id('plan', 3), projectId: id('proj', 1), name: '平台架构设计', startDate: daysAgo(30), endDate: daysAgo(10), progress: 80, status: 'in_progress', order: 2, createdAt: iso(daysAgo(30)), updatedAt: iso(daysAgo(2)) },
+    { id: id('plan', 4), projectId: id('proj', 1), name: '数据治理引擎开发', startDate: daysAgo(15), endDate: daysAgo(-20), progress: 35, status: 'in_progress', order: 3, createdAt: iso(daysAgo(15)), updatedAt: iso(daysAgo(1)) },
+    { id: id('plan', 5), projectId: id('proj', 1), name: '可视化大屏开发', startDate: daysAgo(-5), endDate: daysAgo(-40), progress: 0, status: 'pending', order: 4, createdAt: iso(daysAgo(10)), updatedAt: iso(daysAgo(10)) },
+    { id: id('plan', 6), projectId: id('proj', 1), name: '系统联调与试运行', startDate: daysAgo(-45), endDate: daysAgo(-70), progress: 0, status: 'pending', order: 5, createdAt: iso(daysAgo(10)), updatedAt: iso(daysAgo(10)) },
+
+    { id: id('plan', 7), projectId: id('proj', 2), name: '学校走访与需求收集', startDate: daysAgo(35), endDate: daysAgo(20), progress: 70, status: 'in_progress', order: 0, createdAt: iso(daysAgo(35)), updatedAt: iso(daysAgo(3)) },
+    { id: id('plan', 8), projectId: id('proj', 2), name: '教学评价模型设计', startDate: daysAgo(22), endDate: daysAgo(5), progress: 20, status: 'in_progress', order: 1, createdAt: iso(daysAgo(22)), updatedAt: iso(daysAgo(5)) },
+    { id: id('plan', 9), projectId: id('proj', 2), name: '在线教学平台方案', startDate: daysAgo(-10), endDate: daysAgo(-50), progress: 0, status: 'pending', order: 2, createdAt: iso(daysAgo(10)), updatedAt: iso(daysAgo(10)) },
+    { id: id('plan', 10), projectId: id('proj', 2), name: '校园安全子系统规划', startDate: daysAgo(-30), endDate: daysAgo(-60), progress: 0, status: 'pending', order: 3, createdAt: iso(daysAgo(10)), updatedAt: iso(daysAgo(10)) },
+
+    { id: id('plan', 11), projectId: id('proj', 3), name: '应急数据源对接', startDate: daysAgo(50), endDate: daysAgo(30), progress: 100, status: 'completed', order: 0, createdAt: iso(daysAgo(50)), updatedAt: iso(daysAgo(30)) },
+    { id: id('plan', 12), projectId: id('proj', 3), name: '调度指挥方案设计', startDate: daysAgo(35), endDate: daysAgo(15), progress: 100, status: 'completed', order: 1, createdAt: iso(daysAgo(35)), updatedAt: iso(daysAgo(15)) },
+    { id: id('plan', 13), projectId: id('proj', 3), name: '标书编写与投标', startDate: daysAgo(12), endDate: daysAgo(-15), progress: 55, status: 'in_progress', order: 2, createdAt: iso(daysAgo(12)), updatedAt: iso(daysAgo(1)) },
+    { id: id('plan', 14), projectId: id('proj', 3), name: '合同签订与启动', startDate: daysAgo(-20), endDate: daysAgo(-30), progress: 0, status: 'pending', order: 3, createdAt: iso(daysAgo(10)), updatedAt: iso(daysAgo(10)) },
+
+    { id: id('plan', 15), projectId: id('proj', 4), name: '数字化现状评估', startDate: daysAgo(15), endDate: daysAgo(2), progress: 40, status: 'in_progress', order: 0, createdAt: iso(daysAgo(15)), updatedAt: iso(daysAgo(2)) },
+    { id: id('plan', 16), projectId: id('proj', 4), name: '智慧高速规划方案', startDate: daysAgo(-5), endDate: daysAgo(-45), progress: 0, status: 'pending', order: 1, createdAt: iso(daysAgo(10)), updatedAt: iso(daysAgo(10)) },
+    { id: id('plan', 17), projectId: id('proj', 4), name: '智慧港口规划方案', startDate: daysAgo(-20), endDate: daysAgo(-60), progress: 0, status: 'pending', order: 2, createdAt: iso(daysAgo(10)), updatedAt: iso(daysAgo(10)) },
+    { id: id('plan', 18), projectId: id('proj', 4), name: '智慧物流规划方案', startDate: daysAgo(-35), endDate: daysAgo(-75), progress: 0, status: 'pending', order: 3, createdAt: iso(daysAgo(10)), updatedAt: iso(daysAgo(10)) },
+
+    { id: id('plan', 19), projectId: id('proj', 6), name: '云平台选型与架构', startDate: daysAgo(80), endDate: daysAgo(60), progress: 100, status: 'completed', order: 0, createdAt: iso(daysAgo(80)), updatedAt: iso(daysAgo(60)) },
+    { id: id('plan', 20), projectId: id('proj', 6), name: '业务系统迁移实施', startDate: daysAgo(55), endDate: daysAgo(10), progress: 75, status: 'in_progress', order: 1, createdAt: iso(daysAgo(55)), updatedAt: iso(daysAgo(2)) },
+    { id: id('plan', 21), projectId: id('proj', 6), name: '等保三级安全加固', startDate: daysAgo(30), endDate: daysAgo(-10), progress: 40, status: 'in_progress', order: 2, createdAt: iso(daysAgo(30)), updatedAt: iso(daysAgo(3)) },
+    { id: id('plan', 22), projectId: id('proj', 6), name: '验收与运维交接', startDate: daysAgo(-15), endDate: daysAgo(-25), progress: 0, status: 'pending', order: 3, createdAt: iso(daysAgo(10)), updatedAt: iso(daysAgo(10)) }
+  ]
+
   storage.saveClients(clients)
   storage.saveProjects(projects)
   storage.saveWorkLogs(workLogs)
   storage.saveTodos(todos)
+  storage.savePlanTasks(planTasks)
 }

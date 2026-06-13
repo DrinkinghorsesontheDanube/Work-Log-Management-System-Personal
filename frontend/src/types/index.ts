@@ -43,6 +43,19 @@ export interface PhaseRecord {
   note: string
 }
 
+export interface PlanTask {
+  id: string
+  projectId: string
+  name: string
+  startDate: string
+  endDate: string
+  progress: number
+  status: 'pending' | 'in_progress' | 'completed'
+  order: number
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Todo {
   id: string
   title: string

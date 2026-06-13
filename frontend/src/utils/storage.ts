@@ -1,4 +1,4 @@
-import type { Project, Todo, WorkLog, AiMessage, AiProvider, ProjectPhase, Client, Report } from '../types'
+import type { Project, Todo, WorkLog, AiMessage, AiProvider, ProjectPhase, Client, Report, PlanTask } from '../types'
 import { DEFAULT_PHASES } from '../types'
 
 const STORAGE_KEYS = {
@@ -9,7 +9,8 @@ const STORAGE_KEYS = {
   aiProvider: 'worklog_aiProvider',
   projectPhases: 'worklog_projectPhases',
   clients: 'worklog_clients',
-  reports: 'worklog_reports'
+  reports: 'worklog_reports',
+  planTasks: 'worklog_planTasks'
 }
 
 export const storage = {
@@ -73,6 +74,13 @@ export const storage = {
   saveReports(reports: Report[]) {
     localStorage.setItem(STORAGE_KEYS.reports, JSON.stringify(reports))
   },
+  getPlanTasks(): PlanTask[] {
+    const data = localStorage.getItem(STORAGE_KEYS.planTasks)
+    return data ? JSON.parse(data) : []
+  },
+  savePlanTasks(tasks: PlanTask[]) {
+    localStorage.setItem(STORAGE_KEYS.planTasks, JSON.stringify(tasks))
+  },
   exportAllData(): string {
     const data = {
       projects: this.getProjects(),
@@ -80,6 +88,7 @@ export const storage = {
       workLogs: this.getWorkLogs(),
       clients: this.getClients(),
       reports: this.getReports(),
+      planTasks: this.getPlanTasks(),
       aiMessages: this.getAiMessages(),
       aiProvider: this.getAiProvider(),
       projectPhases: this.getProjectPhases(),
@@ -93,6 +102,7 @@ export const storage = {
     if (data.workLogs) this.saveWorkLogs(data.workLogs as WorkLog[])
     if (data.clients) this.saveClients(data.clients as Client[])
     if (data.reports) this.saveReports(data.reports as Report[])
+    if (data.planTasks) this.savePlanTasks(data.planTasks as PlanTask[])
     if (data.aiMessages) this.saveAiMessages(data.aiMessages as AiMessage[])
     if (data.aiProvider) this.saveAiProvider(data.aiProvider as AiProvider)
     if (data.projectPhases) this.saveProjectPhases(data.projectPhases as ProjectPhase[])
