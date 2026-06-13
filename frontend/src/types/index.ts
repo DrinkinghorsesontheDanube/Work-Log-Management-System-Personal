@@ -46,9 +46,14 @@ export interface PhaseRecord {
 export interface PlanTask {
   id: string
   projectId: string
+  parentId: string | null
   name: string
   startDate: string
   endDate: string
+  duration: number
+  includeHolidays: boolean
+  actualStartDate: string | null
+  actualEndDate: string | null
   progress: number
   status: 'pending' | 'in_progress' | 'completed'
   order: number
@@ -64,6 +69,7 @@ export interface Todo {
   priority: 'low' | 'medium' | 'high'
   dueDate: string
   projectId: string | null
+  planTaskId: string | null
   createdAt: string
   updatedAt: string
 }

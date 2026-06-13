@@ -29,6 +29,8 @@ const timeline = computed(() => {
   for (const t of tasks) {
     if (t.startDate < minDate) minDate = t.startDate
     if (t.endDate > maxDate) maxDate = t.endDate
+    if (t.actualStartDate && t.actualStartDate < minDate) minDate = t.actualStartDate
+    if (t.actualEndDate && t.actualEndDate > maxDate) maxDate = t.actualEndDate
   }
 
   const padStart = new Date(minDate + 'T00:00:00')
@@ -62,6 +64,17 @@ function barStyle(task: PlanTask) {
 
 function progressStyle(task: PlanTask) {
   return { width: task.progress + '%' }
+}
+
+function actualBarStyle(task: PlanTask): Record<string, string> | null {
+  if (!task.actualStartDate) return null
+  const end = task.actualEndDate || fmt(new Date())
+  const offset = diffDays(timeline.value.start, task.actualStartDate)
+  const span = diffDays(task.actualStartDate, end) + 1
+  return {
+    left: (offset * dayWidth) + 'px',
+    width: (span * dayWidth) + 'px'
+  }
 }
 
 const monthHeaders = computed(() => {
@@ -115,6 +128,7 @@ const monthHeaders = computed(() => {
               <div class="bar-progress" :style="progressStyle(task)"></div>
               <span class="bar-label">{{ task.progress }}%</span>
             </div>
+            <div v-if="actualBarStyle(task)" class="bar-actual" :style="actualBarStyle(task)"></div>
           </div>
         </div>
       </div>
@@ -124,17 +138,17 @@ const monthHeaders = computed(() => {
 </template>
 
 <style scoped>
-.gantt-wrap { overflow-x: auto; border: 1px solid var(--border-light); border-radius: var(--radius-sm); }
+.gantt-wrap { overflow: auto; border: 1px solid var(--border-light); border-radius: var(--radius-sm); height: 100%; }
 .gantt-table { display: flex; min-width: fit-content; }
-.gantt-sidebar { flex-shrink: 0; width: 180px; border-right: 1px solid var(--border); }
+.gantt-sidebar { flex-shrink: 0; width: 140px; border-right: 1px solid var(--border); position: sticky; left: 0; z-index: 2; background: var(--bg-card); }
 .sidebar-header {
-  height: 52px; display: flex; align-items: center; padding: 0 14px;
+  height: 52px; display: flex; align-items: center; padding: 0 10px;
   font-size: 12px; font-weight: 600; color: var(--text-muted);
   background: var(--bg); border-bottom: 1px solid var(--border);
 }
 .sidebar-task {
-  height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 14px;
-  border-bottom: 1px solid var(--border-light); font-size: 13px;
+  height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 10px;
+  border-bottom: 1px solid var(--border-light); font-size: 12px;
 }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .status-dot.pending { background: #94a3b8; }
@@ -168,4 +182,8 @@ const monthHeaders = computed(() => {
   background: rgba(255, 255, 255, 0.25); border-radius: 4px 0 0 4px;
 }
 .bar-label { position: relative; font-size: 11px; font-weight: 600; color: #fff; z-index: 1; }
+.bar-actual {
+  position: absolute; top: 14px; height: 12px; border-radius: 3px;
+  background: rgba(251, 146, 60, 0.7); pointer-events: none;
+}
 </style>
