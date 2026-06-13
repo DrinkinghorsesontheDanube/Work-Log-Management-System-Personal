@@ -1,212 +1,366 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { NCard, NButton, NModal, NForm, NFormItem, NInput, NInputNumber, NSelect, NProgress, NSpace, NTag, NText, NIcon, NEmpty, NGrid, NGridItem, NPopconfirm } from 'naive-ui'
-import { AddOutline, EditOutline, TrashOutline, FolderOpenOutline } from '@vicons/ionicons5'
+import { useRouter } from 'vue-router'
 import { useProjectsStore } from '../stores/projects'
+import type { Project } from '../types'
 
+const router = useRouter()
 const projectsStore = useProjectsStore()
 
 const showModal = ref(false)
-const editingProject = ref(null)
-const projectName = ref('')
-const projectDescription = ref('')
-const projectProgress = ref(0)
-const projectStatus = ref('in_progress')
-const startDate = ref('')
-const endDate = ref('')
+const editingProject = ref<Project | null>(null)
+const formName = ref('')
+const formDesc = ref('')
+const formProgress = ref(0)
+const formStatus = ref<Project['status']>('planning')
+const formPhaseId = ref('')
+const formStartDate = ref('')
+const formEndDate = ref('')
 
 const statusOptions = [
+  { label: '规划中', value: 'planning' },
   { label: '进行中', value: 'in_progress' },
   { label: '已完成', value: 'completed' },
-  { label: '待开始', value: 'pending' }
+  { label: '已暂停', value: 'paused' }
 ]
 
-function openAddModal() {
+const statusText: Record<string, string> = {
+  planning: '规划中',
+  in_progress: '进行中',
+  completed: '已完成',
+  paused: '已暂停'
+}
+
+const statusColor: Record<string, string> = {
+  planning: '#6366f1',
+  in_progress: '#22c55e',
+  completed: '#0ea5e9',
+  paused: '#a3a3a3'
+}
+
+const sortedPhases = computed(() =>
+  [...projectsStore.phases].sort((a, b) => a.order - b.order)
+)
+
+function getPhaseName(id: string) {
+  return projectsStore.phases.find(p => p.id === id)?.name || id
+}
+
+function getPhaseColor(id: string) {
+  return projectsStore.phases.find(p => p.id === id)?.color || '#6366f1'
+}
+
+function openAdd() {
   editingProject.value = null
-  projectName.value = ''
-  projectDescription.value = ''
-  projectProgress.value = 0
-  projectStatus.value = 'in_progress'
-  const today = new Date().toISOString().split('T')[0]
-  startDate.value = today
-  endDate.value = today
+  formName.value = ''
+  formDesc.value = ''
+  formProgress.value = 0
+  formStatus.value = 'planning'
+  formPhaseId.value = sortedPhases.value[0]?.id || ''
+  formStartDate.value = new Date().toISOString().split('T')[0]
+  formEndDate.value = ''
   showModal.value = true
 }
 
-function openEditModal(project) {
+function openEdit(project: Project) {
   editingProject.value = project
-  projectName.value = project.name
-  projectDescription.value = project.description
-  projectProgress.value = project.progress
-  projectStatus.value = project.status
-  startDate.value = project.startDate
-  endDate.value = project.endDate
+  formName.value = project.name
+  formDesc.value = project.description
+  formProgress.value = project.progress
+  formStatus.value = project.status
+  formPhaseId.value = project.currentPhaseId
+  formStartDate.value = project.startDate
+  formEndDate.value = project.endDate
   showModal.value = true
 }
 
-function saveProject() {
+function save() {
+  if (!formName.value.trim()) return
+
   if (editingProject.value) {
-    projectsStore.updateProject(editingProject.value.id, {
-      name: projectName.value,
-      description: projectDescription.value,
-      progress: projectProgress.value,
-      status: projectStatus.value,
-      startDate: startDate.value,
-      endDate: endDate.value
-    })
+    const updates: Partial<Project> = {
+      name: formName.value,
+      description: formDesc.value,
+      progress: formProgress.value,
+      status: formStatus.value,
+      startDate: formStartDate.value,
+      endDate: formEndDate.value
+    }
+    if (formPhaseId.value !== editingProject.value.currentPhaseId) {
+      projectsStore.changePhase(editingProject.value.id, formPhaseId.value)
+    }
+    projectsStore.updateProject(editingProject.value.id, updates)
   } else {
     projectsStore.addProject({
-      name: projectName.value,
-      description: projectDescription.value,
-      progress: projectProgress.value,
-      status: projectStatus.value,
-      startDate: startDate.value,
-      endDate: endDate.value
+      name: formName.value,
+      description: formDesc.value,
+      progress: formProgress.value,
+      status: formStatus.value,
+      currentPhaseId: formPhaseId.value,
+      phaseHistory: [{
+        phaseId: formPhaseId.value,
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: null,
+        note: '项目创建'
+      }],
+      startDate: formStartDate.value,
+      endDate: formEndDate.value
     })
   }
   showModal.value = false
 }
 
-function deleteProject(id) {
-  projectsStore.deleteProject(id)
-}
-
-function getStatusType(status) {
-  const types = { in_progress: 'info', completed: 'success', pending: 'default' }
-  return types[status] || 'default'
-}
-
-function getStatusText(status) {
-  const texts = { in_progress: '进行中', completed: '已完成', pending: '待开始' }
-  return texts[status] || status
+function remove(id: string) {
+  if (confirm('确定要删除这个项目吗？')) {
+    projectsStore.deleteProject(id)
+  }
 }
 
 onMounted(() => {
   projectsStore.loadProjects()
+  projectsStore.loadPhases()
 })
 </script>
 
 <template>
-  <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px">
-      <h2 style="font-size: 24px; font-weight: 600; color: #262626; margin: 0">项目管理</h2>
-      <n-button type="primary" @click="openAddModal">
-        <template #icon><n-icon><AddOutline /></n-icon></template>
-        添加项目
-      </n-button>
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">项目管理</h1>
+        <p class="page-subtitle">管理信息化集成项目全生命周期</p>
+      </div>
+      <button class="btn btn-primary" @click="openAdd">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新建项目
+      </button>
     </div>
 
-    <!-- 项目列表 -->
-    <n-grid :x-gap="20" :y-gap="20" :cols="3">
-      <template v-if="projectsStore.projects.length === 0">
-        <n-grid-item>
-          <n-card :bordered="false" hoverable>
-            <n-empty description="暂无项目">
-              <template #extra>
-                <n-button size="small" type="primary" @click="openAddModal">添加第一个项目</n-button>
-              </template>
-            </n-empty>
-          </n-card>
-        </n-grid-item>
-      </template>
-      <template v-else>
-        <n-grid-item v-for="project in projectsStore.projects" :key="project.id">
-          <n-card :bordered="false" hoverable style="height: 100%">
-            <template #header>
-              <div style="display: flex; justify-content: space-between; align-items: flex-start">
-                <div style="flex: 1">
-                  <div style="font-size: 16px; font-weight: 600; color: #262626; margin-bottom: 8px">
-                    {{ project.name }}
-                  </div>
-                  <n-tag :type="getStatusType(project.status)" size="small">
-                    {{ getStatusText(project.status) }}
-                  </n-tag>
-                </div>
-                <n-space>
-                  <n-button text @click="openEditModal(project)">
-                    <template #icon><n-icon color="#1890ff"><EditOutline /></n-icon></template>
-                  </n-button>
-                  <n-popconfirm @positive-click="deleteProject(project.id)">
-                    <template #trigger>
-                      <n-button text>
-                        <template #icon><n-icon color="#ff4d4f"><TrashOutline /></n-icon></template>
-                      </n-button>
-                    </template>
-                    确定要删除这个项目吗？
-                  </n-popconfirm>
-                </n-space>
-              </div>
-            </template>
-            
-            <div style="margin-bottom: 16px">
-              <n-text depth="3" style="font-size: 13px; line-height: 1.6">
-                {{ project.description }}
-              </n-text>
-            </div>
-            
-            <div style="margin-bottom: 12px">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px">
-                <n-text depth="3" style="font-size: 13px">项目进度</n-text>
-                <n-text strong style="font-size: 16px; color: #1890ff">{{ project.progress }}%</n-text>
-              </div>
-              <n-progress 
-                type="line" 
-                :percentage="project.progress" 
-                :height="10"
-                :border-radius="5"
-                :fill-border-radius="5"
-                :color="'#1890ff'"
-                :rail-color="'#f0f0f0'"
-              />
-            </div>
-            
-            <n-divider style="margin: 12px 0" />
-            
-            <div style="display: flex; justify-content: space-between; font-size: 13px">
-              <n-text depth="3">开始：{{ project.startDate }}</n-text>
-              <n-text depth="3">结束：{{ project.endDate }}</n-text>
-            </div>
-          </n-card>
-        </n-grid-item>
-      </template>
-    </n-grid>
+    <div v-if="projectsStore.projects.length === 0" class="card">
+      <div class="card-empty">暂无项目，点击「新建项目」开始</div>
+    </div>
 
-    <!-- 新增/编辑项目模态框 -->
-    <n-modal v-model:show="showModal" preset="card" :style="{ width: '550px' }" :title="editingProject ? '编辑项目' : '添加项目'">
-      <n-form>
-        <n-form-item label="项目名称" required>
-          <n-input v-model:value="projectName" placeholder="请输入项目名称" />
-        </n-form-item>
-        <n-form-item label="项目描述">
-          <n-input v-model:value="projectDescription" type="textarea" placeholder="请输入项目描述" :rows="3" />
-        </n-form-item>
-        <n-form-item label="项目进度">
-          <n-input-number v-model:value="projectProgress" :min="0" :max="100" :show-button="false" style="width: 100%">
-            <template #suffix>%</template>
-          </n-input-number>
-        </n-form-item>
-        <n-form-item label="项目状态">
-          <n-select v-model:value="projectStatus" :options="statusOptions" />
-        </n-form-item>
-        <n-form-item label="开始日期">
-          <n-input v-model:value="startDate" type="date" />
-        </n-form-item>
-        <n-form-item label="结束日期">
-          <n-input v-model:value="endDate" type="date" />
-        </n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showModal = false">取消</n-button>
-          <n-button type="primary" @click="saveProject">保存</n-button>
-        </n-space>
-      </template>
-    </n-modal>
+    <div v-else class="project-grid">
+      <div
+        v-for="p in projectsStore.projects"
+        :key="p.id"
+        class="card project-card"
+      >
+        <div class="card-top" @click="router.push(`/projects/${p.id}`)">
+          <h3 class="card-title">{{ p.name }}</h3>
+          <span
+            class="badge"
+            :class="{
+              'badge-amber': p.status === 'planning',
+              'badge-green': p.status === 'in_progress',
+              'badge-blue': p.status === 'completed',
+              'badge-amber': p.status === 'paused'
+            }"
+          >{{ statusText[p.status] }}</span>
+        </div>
+
+        <div class="card-info">
+          <span class="info-label">当前阶段</span>
+          <span class="phase-tag" :style="{ color: getPhaseColor(p.currentPhaseId), background: getPhaseColor(p.currentPhaseId) + '18' }">
+            {{ getPhaseName(p.currentPhaseId) }}
+          </span>
+        </div>
+
+        <div class="card-info">
+          <div class="progress-row">
+            <span class="info-label">进度</span>
+            <span class="progress-pct">{{ p.progress }}%</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" :style="{ width: p.progress + '%' }"></div>
+          </div>
+        </div>
+
+        <div class="card-bottom">
+          <span class="date-text">{{ p.startDate }} ~ {{ p.endDate || '待定' }}</span>
+          <div class="card-actions">
+            <button class="btn-icon" @click.stop="openEdit(p)" title="编辑">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="btn-icon delete-icon" @click.stop="remove(p.id)" title="删除">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showModal" class="modal-mask" @click.self="showModal = false">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>{{ editingProject ? '编辑项目' : '新建项目' }}</h3>
+          <button class="btn-icon" @click="showModal = false" style="font-size:18px">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-field">
+            <label>项目名称 <span class="required">*</span></label>
+            <input v-model="formName" placeholder="请输入项目名称" class="input" />
+          </div>
+          <div class="form-field">
+            <label>项目描述</label>
+            <textarea v-model="formDesc" placeholder="请输入项目描述" class="input" rows="3"></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label>项目状态</label>
+              <select v-model="formStatus" class="input">
+                <option v-for="s in statusOptions" :key="s.value" :value="s.value">{{ s.label }}</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>当前阶段</label>
+              <select v-model="formPhaseId" class="input">
+                <option v-for="ph in sortedPhases" :key="ph.id" :value="ph.id">{{ ph.name }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>项目进度</label>
+            <div class="range-wrap">
+              <input type="range" v-model.number="formProgress" min="0" max="100" class="range" />
+              <span class="range-val">{{ formProgress }}%</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label>开始日期</label>
+              <input v-model="formStartDate" type="date" class="input" />
+            </div>
+            <div class="form-field">
+              <label>结束日期</label>
+              <input v-model="formEndDate" type="date" class="input" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" @click="showModal = false">取消</button>
+          <button class="btn btn-primary" @click="save">保存</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-:deep(.n-card) {
-  border-radius: 12px;
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.project-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.card-top {
+  padding: 14px 18px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.card-info {
+  padding: 6px 18px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-info:has(.progress-row) {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.info-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.progress-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.progress-pct {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.phase-tag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+}
+
+.card-bottom {
+  padding: 8px 18px;
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.date-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.card-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.delete-icon:hover {
+  background: var(--rose-bg);
+  color: var(--rose);
+}
+
+.form-field {
+  margin-bottom: 14px;
+}
+
+.form-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+
+.required {
+  color: var(--rose);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.range-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.range {
+  flex: 1;
+  accent-color: var(--primary);
+}
+
+.range-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  min-width: 36px;
 }
 </style>

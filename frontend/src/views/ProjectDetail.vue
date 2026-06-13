@@ -1,32 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { 
-  NCard, 
-  NButton, 
-  NProgress, 
-  NModal, 
-  NForm, 
-  NFormItem, 
-  NInput,
-  NSelect,
-  NDatePicker,
-  NPopconfirm,
-  NTag,
-  NList,
-  NListItem,
-  NIcon,
-  NSpace,
-  NGrid,
-  NGridItem,
-  NDivider,
-  NInputNumber
-} from 'naive-ui'
-import { ArrowBackOutline, AddOutline, TrashOutline, CreateOutline, CheckmarkCircleOutline } from '@vicons/ionicons5'
 import { useProjectsStore } from '../stores/projects'
 import { useTodosStore } from '../stores/todos'
 import { useWorkLogsStore } from '../stores/workLogs'
-import type { Project, Todo } from '../types'
+import type { Project } from '../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,294 +12,313 @@ const projectsStore = useProjectsStore()
 const todosStore = useTodosStore()
 const workLogsStore = useWorkLogsStore()
 
-const projectId = computed(() =&gt; route.params.id as string)
-const project = computed(() =&gt; projectsStore.getProjectById(projectId.value))
+const project = ref<Project | null>(null)
+const showPhaseModal = ref(false)
+const newPhaseId = ref('')
+const phaseNote = ref('')
 
-const showEditModal = ref(false)
-const showAddTodoModal = ref(false)
-const editFormData = ref&lt;Partial&lt;Project&gt;&gt;({})
-const todoFormData = ref({
-  title: '',
-  description: '',
-  status: 'pending' as Todo['status'],
-  priority: 'medium' as Todo['priority'],
-  dueDate: null as number | null
+const sortedPhases = computed(() =>
+  [...projectsStore.phases].sort((a, b) => a.order - b.order)
+)
+
+const projectTodos = computed(() =>
+  project.value ? todosStore.getTodosByProjectId(project.value.id) : []
+)
+
+const projectLogs = computed(() =>
+  project.value ? workLogsStore.getWorkLogsByProjectId(project.value.id) : []
+)
+
+function getPhaseName(id: string) {
+  return projectsStore.phases.find(p => p.id === id)?.name || id
+}
+
+function getPhaseColor(id: string) {
+  return projectsStore.phases.find(p => p.id === id)?.color || '#6366f1'
+}
+
+const statusText: Record<string, string> = {
+  planning: '规划中', in_progress: '进行中', completed: '已完成', paused: '已暂停'
+}
+
+function openPhaseChange() {
+  if (!project.value) return
+  newPhaseId.value = project.value.currentPhaseId
+  phaseNote.value = ''
+  showPhaseModal.value = true
+}
+
+function confirmPhaseChange() {
+  if (!project.value || !newPhaseId.value) return
+  projectsStore.changePhase(project.value.id, newPhaseId.value, phaseNote.value)
+  project.value = projectsStore.getProjectById(project.value.id) || null
+  showPhaseModal.value = false
+}
+
+const currentPhaseIndex = computed(() => {
+  if (!project.value) return -1
+  return sortedPhases.value.findIndex(p => p.id === project.value!.currentPhaseId)
 })
 
-const statusOptions = [
-  { label: '规划中', value: 'planning' },
-  { label: '进行中', value: 'in_progress' },
-  { label: '已完成', value: 'completed' },
-  { label: '已暂停', value: 'paused' }
-]
-
-const todoStatusOptions = [
-  { label: '待处理', value: 'pending' },
-  { label: '进行中', value: 'in_progress' },
-  { label: '已完成', value: 'completed' }
-]
-
-const todoPriorityOptions = [
-  { label: '低', value: 'low' },
-  { label: '中', value: 'medium' },
-  { label: '高', value: 'high' }
-]
-
-const statusColors: Record&lt;string, string&gt; = {
-  planning: 'default',
-  in_progress: 'info',
-  completed: 'success',
-  paused: 'warning'
-}
-
-const statusLabels: Record&lt;string, string&gt; = {
-  planning: '规划中',
-  in_progress: '进行中',
-  completed: '已完成',
-  paused: '已暂停'
-}
-
-const projectTodos = computed(() =&gt; todosStore.getTodosByProjectId(projectId.value))
-const projectLogs = computed(() =&gt; workLogsStore.getWorkLogsByProjectId(projectId.value))
-
-function getPriorityColor(priority: string) {
-  switch(priority) {
-    case 'high': return '#fa5252'
-    case 'medium': return '#faad14'
-    case 'low': return '#52c41a'
-    default: return '#8c8c8c'
-  }
-}
-
-function openEditModal() {
-  if (!project.value) return
-  editFormData.value = { ...project.value }
-  showEditModal.value = true
-}
-
-function updateProject() {
-  if (!project.value) return
-  projectsStore.updateProject(project.value.id, editFormData.value)
-  showEditModal.value = false
-}
-
-function openAddTodoModal() {
-  todoFormData.value = {
-    title: '',
-    description: '',
-    status: 'pending',
-    priority: 'medium',
-    dueDate: null
-  }
-  showAddTodoModal.value = true
-}
-
-function addTodo() {
-  if (!todoFormData.value.title) return
-  
-  todosStore.addTodo({
-    title: todoFormData.value.title,
-    description: todoFormData.value.description || undefined,
-    status: todoFormData.value.status,
-    priority: todoFormData.value.priority,
-    dueDate: todoFormData.value.dueDate ? new Date(todoFormData.value.dueDate).toISOString().split('T')[0] : undefined,
-    projectId: projectId.value
-  })
-  
-  showAddTodoModal.value = false
-}
-
-function deleteTodo(todoId: string) {
-  todosStore.deleteTodo(todoId)
-}
-
-function toggleTodoStatus(todo: Todo) {
-  const newStatus = todo.status === 'completed' ? 'pending' : 'completed'
-  todosStore.updateTodo(todo.id, { status: newStatus })
-}
-
-function deleteProject() {
-  projectsStore.deleteProject(projectId.value)
-  router.push('/projects')
-}
+onMounted(() => {
+  projectsStore.loadProjects()
+  projectsStore.loadPhases()
+  todosStore.loadTodos()
+  workLogsStore.loadWorkLogs()
+  project.value = projectsStore.getProjectById(route.params.id as string) || null
+})
 </script>
 
 <template>
-  <div v-if="project">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px">
-      <div style="display: flex; align-items: center; gap: 12px">
-        <n-button quaternary @click="router.back()">
-          <template #icon><n-icon><ArrowBackOutline /></n-icon></template>
-        </n-button>
-        <h2>{{ project.name }}</h2>
-        <n-tag :type="statusColors[project.status]">{{ statusLabels[project.status] }}</n-tag>
+  <div class="page" v-if="project">
+    <div class="page-header">
+      <div>
+        <button class="btn btn-ghost" style="margin-bottom: 6px" @click="router.push('/projects')">&larr; 返回</button>
+        <h1 class="page-title">{{ project.name }}</h1>
+        <p class="page-subtitle">{{ project.description || '暂无描述' }}</p>
       </div>
-      <n-space>
-        <n-button @click="openEditModal">
-          <template #icon><n-icon><CreateOutline /></n-icon></template>
-          编辑
-        </n-button>
-        <n-popconfirm @positive-click="deleteProject">
-          <template #trigger>
-            <n-button type="error">
-              <template #icon><n-icon><TrashOutline /></n-icon></template>
-              删除
-            </n-button>
-          </template>
-          确定要删除此项目吗？
-        </n-popconfirm>
-      </n-space>
+      <span
+        class="badge"
+        :class="{
+          'badge-amber': project.status === 'planning',
+          'badge-green': project.status === 'in_progress',
+          'badge-blue': project.status === 'completed',
+          'badge-amber': project.status === 'paused'
+        }"
+      >{{ statusText[project.status] }}</span>
     </div>
 
-    <n-grid :x-gap="16" :cols="2">
-      <!-- 项目信息 -->
-      <n-grid-item>
-        <n-card title="项目信息">
-          <div style="margin-bottom: 20px">
-            <p style="color: #666; margin: 0; white-space: pre-wrap">{{ project.description || '暂无描述' }}</p>
-          </div>
-          
-          <n-divider />
-          
-          <div style="margin-bottom: 16px">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 8px">
-              <span>项目进度</span>
-              <span style="color: #1890ff; font-weight: bold">{{ project.progress }}%</span>
-            </div>
-            <n-progress :percentage="project.progress" />
-          </div>
-          
-          <div style="display: grid; gap: 8px">
-            <div style="display: flex; justify-content: space-between">
-              <span style="color: #666">开始日期</span>
-              <span>{{ project.startDate || '-' }}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between">
-              <span style="color: #666">结束日期</span>
-              <span>{{ project.endDate || '-' }}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between">
-              <span style="color: #666">待办事项</span>
-              <span>{{ projectTodos.length }} 个</span>
-            </div>
-            <div style="display: flex; justify-content: space-between">
-              <span style="color: #666">工作记录</span>
-              <span>{{ projectLogs.length }} 条</span>
-            </div>
-          </div>
-        </n-card>
-      </n-grid-item>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">项目阶段</span>
+        <button class="btn" @click="openPhaseChange">切换阶段</button>
+      </div>
+      <div class="phase-timeline">
+        <div
+          v-for="(phase, i) in sortedPhases"
+          :key="phase.id"
+          :class="['phase-node', { active: phase.id === project.currentPhaseId, done: i < currentPhaseIndex }]"
+        >
+          <div class="node-dot" :style="{ background: i <= currentPhaseIndex ? phase.color : undefined }"></div>
+          <span class="node-label">{{ phase.name }}</span>
+        </div>
+      </div>
+    </div>
 
-      <!-- 待办事项 -->
-      <n-grid-item>
-        <n-card title="待办事项">
-          <template #header-extra>
-            <n-button size="small" type="primary" @click="openAddTodoModal">
-              <template #icon><n-icon><AddOutline /></n-icon></template>
-              添加
-            </n-button>
-          </template>
-          
-          <template v-if="projectTodos.length === 0">
-            <div style="text-align: center; padding: 24px; color: #999">暂无待办事项</div>
-          </template>
-          
-          <n-list v-else>
-            <n-list-item v-for="todo in projectTodos" :key="todo.id">
-              <div style="display: flex; align-items: center; gap: 12px; width: 100%">
-                <n-button 
-                  :type="todo.status === 'completed' ? 'success' : 'default'" 
-                  quaternary 
-                  circle 
-                  size="small"
-                  @click="toggleTodoStatus(todo)"
-                >
-                  <template #icon>
-                    <n-icon v-if="todo.status === 'completed'"><CheckmarkCircleOutline /></n-icon>
-                  </template>
-                </n-button>
-                <div 
-                  :style="{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: getPriorityColor(todo.priority) }"
-                />
-                <span style="flex: 1" :style="{ textDecoration: todo.status === 'completed' ? 'line-through' : 'none' }">
-                  {{ todo.title }}
-                </span>
-                <span style="color: #999; font-size: 12px">{{ todo.dueDate || '-' }}</span>
-                <n-popconfirm @positive-click="deleteTodo(todo.id)">
-                  <template #trigger>
-                    <n-button size="small" type="error" quaternary>
-                      <template #icon><n-icon><TrashOutline /></n-icon></template>
-                    </n-button>
-                  </template>
-                </n-popconfirm>
-              </div>
-            </n-list-item>
-          </n-list>
-        </n-card>
-      </n-grid-item>
-    </n-grid>
+    <div class="card info-card">
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-label">当前阶段</span>
+          <span class="phase-tag" :style="{ color: getPhaseColor(project.currentPhaseId), background: getPhaseColor(project.currentPhaseId) + '18' }">
+            {{ getPhaseName(project.currentPhaseId) }}
+          </span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">进度</span>
+          <div class="progress-wrap">
+            <div class="progress-track"><div class="progress-fill" :style="{ width: project.progress + '%' }"></div></div>
+            <span class="progress-pct">{{ project.progress }}%</span>
+          </div>
+        </div>
+        <div class="info-item">
+          <span class="info-label">时间</span>
+          <span class="info-value">{{ project.startDate }} ~ {{ project.endDate || '待定' }}</span>
+        </div>
+      </div>
+    </div>
 
-    <!-- 编辑项目弹窗 -->
-    <n-modal v-model:show="showEditModal" preset="card" title="编辑项目" style="width: 500px">
-      <n-form :model="editFormData" label-placement="left">
-        <n-form-item label="项目名称">
-          <n-input v-model:value="editFormData.name" placeholder="请输入项目名称" />
-        </n-form-item>
-        <n-form-item label="项目描述">
-          <n-input 
-            v-model:value="editFormData.description" 
-            type="textarea" 
-            :rows="3"
-            placeholder="请输入项目描述" 
-          />
-        </n-form-item>
-        <n-form-item label="进度">
-          <n-input-number 
-            v-model:value="editFormData.progress" 
-            :min="0" 
-            :max="100" 
-            style="width: 100%"
-          />
-        </n-form-item>
-        <n-form-item label="状态">
-          <n-select v-model:value="editFormData.status" :options="statusOptions" />
-        </n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showEditModal = false">取消</n-button>
-          <n-button type="primary" @click="updateProject">保存</n-button>
-        </n-space>
-      </template>
-    </n-modal>
+    <div class="card" v-if="project.phaseHistory?.length">
+      <div class="card-header">
+        <span class="card-title">阶段记录</span>
+      </div>
+      <div class="card-body">
+        <div v-for="(record, i) in project.phaseHistory" :key="i" class="history-item">
+          <span class="dot" :style="{ background: getPhaseColor(record.phaseId), width: '8px', height: '8px', marginTop: '5px' }"></span>
+          <div class="history-info">
+            <span class="history-name">{{ getPhaseName(record.phaseId) }}</span>
+            <span class="history-date">{{ record.startDate }} {{ record.endDate ? '~ ' + record.endDate : '(当前)' }}</span>
+            <span v-if="record.note" class="history-note">{{ record.note }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <!-- 添加待办弹窗 -->
-    <n-modal v-model:show="showAddTodoModal" preset="card" title="添加待办" style="width: 500px">
-      <n-form :model="todoFormData" label-placement="left">
-        <n-form-item label="标题">
-          <n-input v-model:value="todoFormData.title" placeholder="请输入待办标题" />
-        </n-form-item>
-        <n-form-item label="描述">
-          <n-input 
-            v-model:value="todoFormData.description" 
-            type="textarea" 
-            :rows="3"
-            placeholder="请输入描述（可选）" 
-          />
-        </n-form-item>
-        <n-form-item label="优先级">
-          <n-select v-model:value="todoFormData.priority" :options="todoPriorityOptions" />
-        </n-form-item>
-        <n-form-item label="截止日期">
-          <n-date-picker v-model:value="todoFormData.dueDate" type="date" />
-        </n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showAddTodoModal = false">取消</n-button>
-          <n-button type="primary" @click="addTodo">添加</n-button>
-        </n-space>
-      </template>
-    </n-modal>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">关联待办 ({{ projectTodos.length }})</span>
+      </div>
+      <div class="card-body">
+        <div v-if="projectTodos.length === 0" class="card-empty">暂无关联待办</div>
+        <div v-for="t in projectTodos" :key="t.id" class="list-row" style="cursor: default">
+          <span :class="['dot', t.priority === 'high' ? 'dot-rose' : t.priority === 'medium' ? 'dot-amber' : 'dot-muted']"></span>
+          <span :class="['todo-text', { done: t.status === 'completed' }]">{{ t.title }}</span>
+          <span class="todo-date">{{ t.dueDate }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">关联日志 ({{ projectLogs.length }})</span>
+      </div>
+      <div class="card-body">
+        <div v-if="projectLogs.length === 0" class="card-empty">暂无关联日志</div>
+        <div v-for="log in projectLogs" :key="log.id" class="list-row log-row" style="cursor: default">
+          <span class="log-date">{{ log.date }}</span>
+          <span class="log-content">{{ log.content }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showPhaseModal" class="modal-mask" @click.self="showPhaseModal = false">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>切换项目阶段</h3>
+          <button class="btn-icon" @click="showPhaseModal = false">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-field">
+            <label>目标阶段</label>
+            <select v-model="newPhaseId" class="input">
+              <option v-for="ph in sortedPhases" :key="ph.id" :value="ph.id">{{ ph.name }}</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>备注</label>
+            <textarea v-model="phaseNote" placeholder="阶段变更说明（可选）" class="input" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" @click="showPhaseModal = false">取消</button>
+          <button class="btn btn-primary" @click="confirmPhaseChange">确认切换</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div v-else class="page">
+    <div class="card">
+      <div class="card-empty">
+        <p style="margin-bottom: 14px">项目不存在</p>
+        <button class="btn" @click="router.push('/projects')">返回项目列表</button>
+      </div>
+    </div>
   </div>
 </template>
+
+<style scoped>
+.card { margin-bottom: 16px; }
+.card:last-of-type { margin-bottom: 0; }
+
+.phase-timeline {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding: 16px 18px;
+}
+.phase-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 56px;
+}
+.node-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: all 0.2s;
+}
+.phase-node.done .node-dot { transform: scale(0.9); }
+.phase-node.active .node-dot {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
+}
+.node-label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-align: center;
+  white-space: nowrap;
+}
+.phase-node.active .node-label {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border-light);
+}
+.info-item {
+  background: var(--bg-card);
+  padding: 14px 18px;
+}
+.info-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.info-value {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+}
+.phase-tag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 9px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+}
+.progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.progress-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  min-width: 36px;
+}
+
+.history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border-light);
+}
+.history-item:last-child { border-bottom: none; }
+.history-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.history-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.history-date { font-size: 12px; color: var(--text-muted); }
+.history-note { font-size: 12px; color: var(--text-secondary); }
+
+.todo-text { flex: 1; font-size: 13px; color: var(--text); }
+.todo-text.done { text-decoration: line-through; color: var(--text-muted); }
+.todo-date { font-size: 12px; color: var(--text-muted); }
+
+.log-row { flex-direction: column; align-items: flex-start; gap: 3px; }
+.log-date { font-size: 12px; color: var(--text-muted); }
+.log-content { font-size: 13px; color: var(--text-secondary); }
+
+.form-field { margin-bottom: 14px; }
+.form-field:last-child { margin-bottom: 0; }
+.form-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+</style>

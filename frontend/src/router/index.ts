@@ -1,4 +1,3 @@
-
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
@@ -18,14 +17,19 @@ const routes = [
     component: () => import('../views/Projects.vue')
   },
   {
+    path: '/projects/:id',
+    name: 'ProjectDetail',
+    component: () => import('../views/ProjectDetail.vue')
+  },
+  {
     path: '/todos',
     name: 'Todos',
     component: () => import('../views/Todos.vue')
   },
   {
-    path: '/ai-assistant',
-    name: 'AiAssistant',
-    component: () => import('../views/AiAssistant.vue')
+    path: '/clients',
+    name: 'Clients',
+    component: () => import('../views/Clients.vue')
   },
   {
     path: '/settings',

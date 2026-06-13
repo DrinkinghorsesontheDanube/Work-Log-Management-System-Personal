@@ -1,103 +1,106 @@
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { NCard, NButton, NModal, NForm, NFormItem, NInput, NSelect, NTag, NSpace, NText, NIcon, NEmpty, NGrid, NGridItem, NPopconfirm } from 'naive-ui'
-import { AddOutline, EditOutline, TrashOutline } from '@vicons/ionicons5'
 import { useTodosStore } from '../stores/todos'
 import { useProjectsStore } from '../stores/projects'
+import type { Todo } from '../types'
 
 const todosStore = useTodosStore()
 const projectsStore = useProjectsStore()
 
 const showModal = ref(false)
-const editingTodo = ref(null)
-const todoTitle = ref('')
-const todoDescription = ref('')
-const todoStatus = ref('pending')
-const todoPriority = ref('medium')
-const todoDueDate = ref('')
-const todoProjectId = ref(null)
-
-const statusOptions = [
-  { label: '待处理', value: 'pending' },
-  { label: '进行中', value: 'in_progress' },
-  { label: '已完成', value: 'completed' }
-]
+const editingTodo = ref<Todo | null>(null)
+const formTitle = ref('')
+const formDesc = ref('')
+const formPriority = ref<Todo['priority']>('medium')
+const formDueDate = ref('')
+const formProjectId = ref<string | null>(null)
+const filter = ref<'all' | 'pending' | 'in_progress' | 'completed'>('all')
 
 const priorityOptions = [
-  { label: '高优先级', value: 'high' },
-  { label: '中优先级', value: 'medium' },
-  { label: '低优先级', value: 'low' }
+  { label: '紧急', value: 'high' },
+  { label: '中', value: 'medium' },
+  { label: '低', value: 'low' }
 ]
 
-const projectOptions = computed(() => [
-  { label: '不关联项目', value: null },
-  ...projectsStore.projects.map(p => ({ label: p.name, value: p.id }))
-])
+const filteredTodos = computed(() => {
+  let list = [...todosStore.todos]
+  if (filter.value !== 'all') {
+    list = list.filter(t => t.status === filter.value)
+  }
+  const pri: Record<string, number> = { high: 0, medium: 1, low: 2 }
+  return list.sort((a, b) => {
+    if (a.status === 'completed' && b.status !== 'completed') return 1
+    if (a.status !== 'completed' && b.status === 'completed') return -1
+    return (pri[a.priority] ?? 1) - (pri[b.priority] ?? 1)
+  })
+})
 
-function openAddModal() {
+const filterCounts = computed(() => ({
+  all: todosStore.todos.length,
+  pending: todosStore.pendingTodos.length,
+  in_progress: todosStore.inProgressTodos.length,
+  completed: todosStore.completedTodos.length
+}))
+
+function getProjectName(id: string | null) {
+  if (!id) return ''
+  return projectsStore.projects.find(p => p.id === id)?.name || ''
+}
+
+function openAdd() {
   editingTodo.value = null
-  todoTitle.value = ''
-  todoDescription.value = ''
-  todoStatus.value = 'pending'
-  todoPriority.value = 'medium'
-  const today = new Date().toISOString().split('T')[0]
-  todoDueDate.value = today
-  todoProjectId.value = null
+  formTitle.value = ''
+  formDesc.value = ''
+  formPriority.value = 'medium'
+  formDueDate.value = new Date().toISOString().split('T')[0]
+  formProjectId.value = null
   showModal.value = true
 }
 
-function openEditModal(todo) {
+function openEdit(todo: Todo) {
   editingTodo.value = todo
-  todoTitle.value = todo.title
-  todoDescription.value = todo.description
-  todoStatus.value = todo.status
-  todoPriority.value = todo.priority
-  todoDueDate.value = todo.dueDate
-  todoProjectId.value = todo.projectId
+  formTitle.value = todo.title
+  formDesc.value = todo.description
+  formPriority.value = todo.priority
+  formDueDate.value = todo.dueDate
+  formProjectId.value = todo.projectId
   showModal.value = true
 }
 
-function saveTodo() {
+function save() {
+  if (!formTitle.value.trim()) return
   if (editingTodo.value) {
     todosStore.updateTodo(editingTodo.value.id, {
-      title: todoTitle.value,
-      description: todoDescription.value,
-      status: todoStatus.value,
-      priority: todoPriority.value,
-      dueDate: todoDueDate.value,
-      projectId: todoProjectId.value
+      title: formTitle.value,
+      description: formDesc.value,
+      priority: formPriority.value,
+      dueDate: formDueDate.value,
+      projectId: formProjectId.value
     })
   } else {
     todosStore.addTodo({
-      title: todoTitle.value,
-      description: todoDescription.value,
-      status: todoStatus.value,
-      priority: todoPriority.value,
-      dueDate: todoDueDate.value,
-      projectId: todoProjectId.value
+      title: formTitle.value,
+      description: formDesc.value,
+      status: 'pending',
+      priority: formPriority.value,
+      dueDate: formDueDate.value,
+      projectId: formProjectId.value
     })
   }
   showModal.value = false
 }
 
-function deleteTodo(id) {
+function toggleStatus(todo: Todo) {
+  const next = todo.status === 'completed' ? 'pending' : 'completed'
+  todosStore.updateTodo(todo.id, { status: next })
+}
+
+function remove(id: string) {
   todosStore.deleteTodo(id)
 }
 
-function getPriorityType(priority) {
-  const types = { high: 'error', medium: 'warning', low: 'success' }
-  return types[priority] || 'default'
-}
-
-function getPriorityText(priority) {
-  const texts = { high: '高', medium: '中', low: '低' }
-  return texts[priority] || priority
-}
-
-function getProjectName(projectId) {
-  if (!projectId) return ''
-  const project = projectsStore.projects.find(p => p.id === projectId)
-  return project ? project.name : ''
+function statusLabel(s: string) {
+  return s === 'completed' ? '已完成' : s === 'in_progress' ? '进行中' : '待处理'
 }
 
 onMounted(() => {
@@ -107,187 +110,172 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px">
-      <h2 style="font-size: 24px; font-weight: 600; color: #262626; margin: 0">待办事项</h2>
-      <n-button type="primary" @click="openAddModal">
-        <template #icon><n-icon><AddOutline /></n-icon></template>
-        添加待办
-      </n-button>
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">待办事项</h1>
+        <p class="page-subtitle">管理任务和待跟进事项</p>
+      </div>
+      <button class="btn btn-primary" @click="openAdd">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新建待办
+      </button>
     </div>
 
-    <!-- 三栏看板 -->
-    <n-grid :x-gap="20" :cols="3">
-      <!-- 待处理 -->
-      <n-grid-item>
-        <n-card title="待处理" :bordered="false" style="background: #fafafa">
-          <template #header-extra>
-            <n-tag type="default" size="small">{{ todosStore.pendingTodos.length }}</n-tag>
-          </template>
-          <n-space vertical :size="12">
-            <template v-if="todosStore.pendingTodos.length === 0">
-              <n-empty description="暂无待处理任务" />
-            </template>
-            <template v-else>
-              <div 
-                v-for="todo in todosStore.pendingTodos" 
-                :key="todo.id" 
-                style="padding: 12px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08)"
-              >
-                <div style="margin-bottom: 8px">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px">
-                    <strong style="font-size: 14px; color: #262626">{{ todo.title }}</strong>
-                    <n-tag :type="getPriorityType(todo.priority)" size="small">{{ getPriorityText(todo.priority) }}</n-tag>
-                  </div>
-                  <n-text depth="3" style="font-size: 13px; line-height: 1.5">{{ todo.description }}</n-text>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0">
-                  <n-text depth="3" style="font-size: 12px">{{ todo.dueDate }}</n-text>
-                  <n-space>
-                    <n-button text size="small" @click="openEditModal(todo)">
-                      <template #icon><n-icon :size="16"><EditOutline /></n-icon></template>
-                    </n-button>
-                    <n-popconfirm @positive-click="deleteTodo(todo.id)">
-                      <template #trigger>
-                        <n-button text size="small">
-                          <template #icon><n-icon :size="16" color="#ff4d4f"><TrashOutline /></n-icon></template>
-                        </n-button>
-                      </template>
-                      确定要删除吗？
-                    </n-popconfirm>
-                  </n-space>
-                </div>
-              </div>
-            </template>
-          </n-space>
-        </n-card>
-      </n-grid-item>
+    <div class="card">
+      <div class="card-header">
+        <div class="filters">
+          <button
+            v-for="f in (['all', 'pending', 'in_progress', 'completed'] as const)"
+            :key="f"
+            :class="['btn', 'btn-sm', { 'btn-primary': filter === f }]"
+            @click="filter = f"
+          >
+            {{ f === 'all' ? '全部' : statusLabel(f) }}
+            <span class="filter-count">{{ filterCounts[f] }}</span>
+          </button>
+        </div>
+      </div>
 
-      <!-- 进行中 -->
-      <n-grid-item>
-        <n-card title="进行中" :bordered="false" style="background: #f6ffed">
-          <template #header-extra>
-            <n-tag type="info" size="small">{{ todosStore.inProgressTodos.length }}</n-tag>
-          </template>
-          <n-space vertical :size="12">
-            <template v-if="todosStore.inProgressTodos.length === 0">
-              <n-empty description="暂无进行中任务" />
-            </template>
-            <template v-else>
-              <div 
-                v-for="todo in todosStore.inProgressTodos" 
-                :key="todo.id" 
-                style="padding: 12px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08)"
-              >
-                <div style="margin-bottom: 8px">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px">
-                    <strong style="font-size: 14px; color: #262626">{{ todo.title }}</strong>
-                    <n-tag :type="getPriorityType(todo.priority)" size="small">{{ getPriorityText(todo.priority) }}</n-tag>
-                  </div>
-                  <n-text depth="3" style="font-size: 13px; line-height: 1.5">{{ todo.description }}</n-text>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #d9f7be">
-                  <n-text depth="3" style="font-size: 12px">{{ todo.dueDate }}</n-text>
-                  <n-space>
-                    <n-button text size="small" @click="openEditModal(todo)">
-                      <template #icon><n-icon :size="16"><EditOutline /></n-icon></template>
-                    </n-button>
-                    <n-popconfirm @positive-click="deleteTodo(todo.id)">
-                      <template #trigger>
-                        <n-button text size="small">
-                          <template #icon><n-icon :size="16" color="#ff4d4f"><TrashOutline /></n-icon></template>
-                        </n-button>
-                      </template>
-                      确定要删除吗？
-                    </n-popconfirm>
-                  </n-space>
-                </div>
-              </div>
-            </template>
-          </n-space>
-        </n-card>
-      </n-grid-item>
+      <div v-if="filteredTodos.length === 0" class="card-empty">暂无待办</div>
 
-      <!-- 已完成 -->
-      <n-grid-item>
-        <n-card title="已完成" :bordered="false" style="background: #f9f9f9">
-          <template #header-extra>
-            <n-tag type="success" size="small">{{ todosStore.completedTodos.length }}</n-tag>
-          </template>
-          <n-space vertical :size="12">
-            <template v-if="todosStore.completedTodos.length === 0">
-              <n-empty description="暂无已完成任务" />
-            </template>
-            <template v-else>
-              <div 
-                v-for="todo in todosStore.completedTodos.slice(0, 10)" 
-                :key="todo.id" 
-                style="padding: 12px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08)"
-              >
-                <div style="margin-bottom: 8px">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px">
-                    <strong style="font-size: 14px; color: #999; text-decoration: line-through">{{ todo.title }}</strong>
-                    <n-tag :type="getPriorityType(todo.priority)" size="small">{{ getPriorityText(todo.priority) }}</n-tag>
-                  </div>
-                  <n-text depth="3" style="font-size: 13px; line-height: 1.5; text-decoration: line-through">{{ todo.description }}</n-text>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f0f0f0">
-                  <n-text depth="3" style="font-size: 12px">{{ todo.dueDate }}</n-text>
-                  <n-space>
-                    <n-button text size="small" @click="openEditModal(todo)">
-                      <template #icon><n-icon :size="16"><EditOutline /></n-icon></template>
-                    </n-button>
-                    <n-popconfirm @positive-click="deleteTodo(todo.id)">
-                      <template #trigger>
-                        <n-button text size="small">
-                          <template #icon><n-icon :size="16" color="#ff4d4f"><TrashOutline /></n-icon></template>
-                        </n-button>
-                      </template>
-                      确定要删除吗？
-                    </n-popconfirm>
-                  </n-space>
-                </div>
-              </div>
-            </template>
-          </n-space>
-        </n-card>
-      </n-grid-item>
-    </n-grid>
+      <div class="card-body">
+        <div
+          v-for="t in filteredTodos"
+          :key="t.id"
+          class="list-row"
+          :class="{ done: t.status === 'completed' }"
+          @click="openEdit(t)"
+        >
+          <button class="check-btn" :class="{ checked: t.status === 'completed' }" @click.stop="toggleStatus(t)">
+            <svg v-if="t.status === 'completed'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
 
-    <!-- 新增/编辑待办模态框 -->
-    <n-modal v-model:show="showModal" preset="card" :style="{ width: '500px' }" :title="editingTodo ? '编辑待办' : '添加待办'">
-      <n-form>
-        <n-form-item label="标题" required>
-          <n-input v-model:value="todoTitle" placeholder="请输入待办标题" />
-        </n-form-item>
-        <n-form-item label="描述">
-          <n-input v-model:value="todoDescription" type="textarea" placeholder="请输入待办描述" :rows="3" />
-        </n-form-item>
-        <n-form-item label="状态">
-          <n-select v-model:value="todoStatus" :options="statusOptions" />
-        </n-form-item>
-        <n-form-item label="优先级">
-          <n-select v-model:value="todoPriority" :options="priorityOptions" />
-        </n-form-item>
-        <n-form-item label="截止日期">
-          <n-input v-model:value="todoDueDate" type="date" />
-        </n-form-item>
-        <n-form-item label="关联项目">
-          <n-select v-model:value="todoProjectId" :options="projectOptions" placeholder="选择关联项目（可选）" clearable />
-        </n-form-item>
-      </n-form>
-      <template #footer>
-        <n-space justify="end">
-          <n-button @click="showModal = false">取消</n-button>
-          <n-button type="primary" @click="saveTodo">保存</n-button>
-        </n-space>
-      </template>
-    </n-modal>
+          <span :class="['todo-title', { struck: t.status === 'completed' }]">{{ t.title }}</span>
+
+          <span :class="['badge', t.priority === 'high' ? 'badge-rose' : t.priority === 'medium' ? 'badge-amber' : '']">
+            {{ t.priority === 'high' ? '紧急' : t.priority === 'medium' ? '中' : '低' }}
+          </span>
+
+          <span v-if="getProjectName(t.projectId)" class="todo-project">{{ getProjectName(t.projectId) }}</span>
+
+          <span v-if="t.dueDate" class="todo-date">{{ t.dueDate }}</span>
+
+          <span style="flex:1"></span>
+
+          <button class="btn-icon" @click.stop="remove(t.id)" title="删除">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showModal" class="modal-mask" @click.self="showModal = false">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>{{ editingTodo ? '编辑待办' : '新建待办' }}</h3>
+          <button class="btn-icon" @click="showModal = false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label>标题 <span class="req">*</span></label>
+            <input v-model="formTitle" placeholder="待办标题" class="input" />
+          </div>
+          <div class="field">
+            <label>描述</label>
+            <textarea v-model="formDesc" placeholder="详细描述" class="input" rows="3"></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>优先级</label>
+              <select v-model="formPriority" class="input">
+                <option v-for="p in priorityOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>截止日期</label>
+              <input v-model="formDueDate" type="date" class="input" />
+            </div>
+          </div>
+          <div class="field">
+            <label>关联项目</label>
+            <select v-model="formProjectId" class="input">
+              <option :value="null">不关联</option>
+              <option v-for="p in projectsStore.projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" @click="showModal = false">取消</button>
+          <button class="btn btn-primary" @click="save">保存</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-:deep(.n-card) {
-  border-radius: 12px;
+.filters {
+  display: flex;
+  gap: 4px;
 }
+.filter-count {
+  font-size: 10px;
+  margin-left: 2px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: rgba(255,255,255,0.2);
+}
+.btn:not(.btn-primary) .filter-count {
+  background: var(--border-light);
+}
+
+.check-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border);
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: white;
+  transition: all 0.15s;
+}
+.check-btn:hover { border-color: var(--primary); }
+.check-btn.checked { background: var(--primary); border-color: var(--primary); }
+
+.todo-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.todo-title.struck {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.todo-project {
+  font-size: 11px;
+  color: var(--primary);
+  background: var(--primary-50);
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+}
+.todo-date {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.done { opacity: 0.55; }
+
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12.5px; font-weight: 500; color: var(--text-secondary); margin-bottom: 5px; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.req { color: var(--rose); }
 </style>

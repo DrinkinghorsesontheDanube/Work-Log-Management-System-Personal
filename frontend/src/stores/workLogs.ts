@@ -1,8 +1,8 @@
-
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { WorkLog } from '../types'
+import type { WorkLog, WorkCategoryId } from '../types'
 import { storage } from '../utils/storage'
+import { createEntity, touchEntity } from '../utils/entity'
 
 export const useWorkLogsStore = defineStore('workLogs', () => {
   const workLogs = ref<WorkLog[]>([])
@@ -16,12 +16,7 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
   }
 
   function addWorkLog(workLog: Omit<WorkLog, 'id' | 'createdAt' | 'updatedAt'>) {
-    const newWorkLog: WorkLog = {
-      ...workLog,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
+    const newWorkLog: WorkLog = createEntity(workLog, 'log')
     workLogs.value.push(newWorkLog)
     saveWorkLogs()
     return newWorkLog
@@ -30,11 +25,7 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
   function updateWorkLog(id: string, updates: Partial<WorkLog>) {
     const index = workLogs.value.findIndex(w => w.id === id)
     if (index !== -1) {
-      workLogs.value[index] = {
-        ...workLogs.value[index],
-        ...updates,
-        updatedAt: new Date().toISOString()
-      }
+      workLogs.value[index] = touchEntity(workLogs.value[index], updates)
       saveWorkLogs()
     }
   }
@@ -48,6 +39,10 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
     return workLogs.value.find(w => w.date === date)
   }
 
+  function getWorkLogsByProjectId(projectId: string) {
+    return workLogs.value.filter(w => w.projectId === projectId)
+  }
+
   const last7DaysStats = computed(() => {
     const stats: Record<string, number> = {}
     for (let i = 6; i >= 0; i--) {
@@ -59,6 +54,15 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
     return stats
   })
 
+  const categoryStats = computed(() => {
+    const stats: Record<string, number> = {}
+    for (const log of workLogs.value) {
+      const cat = log.categoryId || 'other'
+      stats[cat] = (stats[cat] || 0) + 1
+    }
+    return stats
+  })
+
   return {
     workLogs,
     loadWorkLogs,
@@ -66,6 +70,8 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
     updateWorkLog,
     deleteWorkLog,
     getWorkLogByDate,
-    last7DaysStats
+    getWorkLogsByProjectId,
+    last7DaysStats,
+    categoryStats
   }
 })

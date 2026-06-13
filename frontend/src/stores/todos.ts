@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Todo } from '../types'
 import { storage } from '../utils/storage'
+import { createEntity, touchEntity } from '../utils/entity'
 
 export const useTodosStore = defineStore('todos', () => {
   const todos = ref<Todo[]>([])
@@ -16,12 +17,7 @@ export const useTodosStore = defineStore('todos', () => {
   }
 
   function addTodo(todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>) {
-    const newTodo: Todo = {
-      ...todo,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
+    const newTodo: Todo = createEntity(todo, 'todo')
     todos.value.push(newTodo)
     saveTodos()
     return newTodo
@@ -30,18 +26,22 @@ export const useTodosStore = defineStore('todos', () => {
   function updateTodo(id: string, updates: Partial<Todo>) {
     const index = todos.value.findIndex(t => t.id === id)
     if (index !== -1) {
-      todos.value[index] = {
-        ...todos.value[index],
-        ...updates,
-        updatedAt: new Date().toISOString()
-      }
+      todos.value[index] = touchEntity(todos.value[index], updates)
       saveTodos()
     }
+  }
+
+  function setTodoCompleted(id: string, completed: boolean) {
+    updateTodo(id, { status: completed ? 'completed' : 'pending' })
   }
 
   function deleteTodo(id: string) {
     todos.value = todos.value.filter(t => t.id !== id)
     saveTodos()
+  }
+
+  function getTodosByProjectId(projectId: string) {
+    return todos.value.filter(t => t.projectId === projectId)
   }
 
   const pendingTodos = computed(() => 
@@ -66,7 +66,9 @@ export const useTodosStore = defineStore('todos', () => {
     loadTodos,
     addTodo,
     updateTodo,
+    setTodoCompleted,
     deleteTodo,
+    getTodosByProjectId,
     pendingTodos,
     inProgressTodos,
     completedTodos,

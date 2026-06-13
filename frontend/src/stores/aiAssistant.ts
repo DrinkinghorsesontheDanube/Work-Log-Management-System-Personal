@@ -1,12 +1,15 @@
-
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { AiMessage } from '../types'
 import { storage } from '../utils/storage'
+import { createEntity } from '../utils/entity'
+import { chatWithAI, isAiConfigured } from '../services/aiService'
+import type { ChatMessage as AiChatMessage } from '../services/aiService'
 
 export const useAiAssistantStore = defineStore('aiAssistant', () => {
   const messages = ref<AiMessage[]>([])
   const loading = ref(false)
+  const error = ref('')
 
   function loadMessages() {
     messages.value = storage.getAiMessages()
@@ -17,27 +20,48 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
   }
 
   async function sendMessage(content: string) {
-    const userMessage: AiMessage = {
-      id: Date.now().toString(),
+    const userMessage: AiMessage = createEntity({
       role: 'user',
       content,
       timestamp: new Date().toISOString()
-    }
+    }, 'msg')
     messages.value.push(userMessage)
     loading.value = true
+    error.value = ''
     saveMessages()
 
-    await new Promise(resolve => setTimeout(resolve, 500))
+    try {
+      if (!isAiConfigured()) {
+        throw new Error('请先在设置中配置 AI 服务')
+      }
 
-    const assistantMessage: AiMessage = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: '这是一个模拟的AI回答。在实际应用中，这里会接入真实的AI服务。',
-      timestamp: new Date().toISOString()
+      const chatHistory: AiChatMessage[] = messages.value.slice(-10).map(m => ({
+        role: m.role,
+        content: m.content
+      }))
+
+      const reply = await chatWithAI(chatHistory)
+
+      const assistantMessage: AiMessage = createEntity({
+        role: 'assistant',
+        content: reply,
+        timestamp: new Date().toISOString()
+      }, 'msg')
+      messages.value.push(assistantMessage)
+      saveMessages()
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : '请求失败'
+      error.value = errorMessage
+      const errorMsg: AiMessage = createEntity({
+        role: 'assistant',
+        content: `[错误] ${errorMessage}`,
+        timestamp: new Date().toISOString()
+      }, 'msg')
+      messages.value.push(errorMsg)
+      saveMessages()
+    } finally {
+      loading.value = false
     }
-    messages.value.push(assistantMessage)
-    loading.value = false
-    saveMessages()
   }
 
   function clearMessages() {
@@ -48,6 +72,7 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
   return {
     messages,
     loading,
+    error,
     loadMessages,
     sendMessage,
     clearMessages
