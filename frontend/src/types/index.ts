@@ -29,6 +29,7 @@ export interface Project {
   status: 'planning' | 'in_progress' | 'completed' | 'paused'
   currentPhaseId: string
   phaseHistory: PhaseRecord[]
+  phaseIds: string[]
   clientId: string | null
   clientLeaderId: string | null
   clientExecutorId: string | null

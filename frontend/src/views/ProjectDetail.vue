@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '../stores/projects'
 import { useTodosStore } from '../stores/todos'
 import { useWorkLogsStore } from '../stores/workLogs'
+import { useClientsStore } from '../stores/clients'
 import { storage } from '../utils/storage'
 import { chatWithAI, isAiConfigured } from '../services/aiService'
 import { addWorkingDays, calcWorkingDays } from '../utils/workdays'
@@ -15,15 +16,48 @@ const router = useRouter()
 const projectsStore = useProjectsStore()
 const todosStore = useTodosStore()
 const workLogsStore = useWorkLogsStore()
+const clientsStore = useClientsStore()
 
 const project = ref<Project | null>(null)
 const showPhaseModal = ref(false)
 const newPhaseId = ref('')
 const phaseNote = ref('')
 
+const showEditModal = ref(false)
+const editName = ref('')
+const editDesc = ref('')
+const editStatus = ref<Project['status']>('planning')
+const editStartDate = ref('')
+const editEndDate = ref('')
+const editBudget = ref(0)
+const editManager = ref('')
+const editClientId = ref<string | null>(null)
+const editClientLeaderId = ref<string | null>(null)
+const editClientExecutorId = ref<string | null>(null)
+const editProgress = ref(0)
+
+watch(editClientId, () => {
+  editClientLeaderId.value = null
+  editClientExecutorId.value = null
+})
+
+const editClientContacts = computed(() => {
+  if (!editClientId.value) return []
+  return clientsStore.clients.find(c => c.id === editClientId.value)?.contacts || []
+})
+
 const sortedPhases = computed(() =>
   [...projectsStore.phases].sort((a, b) => a.order - b.order)
 )
+const projectPhases = computed(() => {
+  const allPhases = [...projectsStore.phases].sort((a, b) => a.order - b.order)
+  if (!project.value || !project.value.phaseIds || project.value.phaseIds.length === 0) {
+    return allPhases
+  }
+  return project.value.phaseIds
+    .map(id => allPhases.find(p => p.id === id))
+    .filter(Boolean) as typeof allPhases
+})
 const projectTodos = computed(() =>
   project.value ? todosStore.getTodosByProjectId(project.value.id) : []
 )
@@ -52,6 +86,11 @@ const confirmTitle = ref('')
 const confirmMessage = ref('')
 const confirmDanger = ref(false)
 const pendingDeleteId = ref<string | null>(null)
+const showPhaseConfigModal = ref(false)
+const customPhaseName = ref('')
+const customPhaseColor = ref('#6366f1')
+const addablePhaseId = ref('')
+const dragPhaseIdx = ref<number | null>(null)
 
 const projectPlanTasks = computed(() => {
   const all = planTasks.value.filter(t => t.projectId === project.value?.id)
@@ -68,6 +107,24 @@ const projectPlanTasks = computed(() => {
 const parentTasks = computed(() =>
   projectPlanTasks.value.filter(t => t.parentId === null)
 )
+
+const autoProgress = computed(() => {
+  const parents = parentTasks.value
+  if (parents.length === 0) return 0
+  const totalDuration = parents.reduce((sum, t) => sum + (t.duration || 1), 0)
+  if (totalDuration === 0) return 0
+  const weighted = parents.reduce((sum, t) => sum + t.progress * (t.duration || 1), 0)
+  return Math.round(weighted / totalDuration)
+})
+
+function syncProjectProgress() {
+  if (!project.value) return
+  const p = autoProgress.value
+  if (p !== project.value.progress) {
+    projectsStore.updateProject(project.value.id, { progress: p })
+    project.value = projectsStore.getProjectById(project.value.id) || null
+  }
+}
 
 const planLinkedTodos = computed(() => {
   const map: Record<string, typeof projectTodos.value> = {}
@@ -131,6 +188,7 @@ function syncProgressFromTodos(taskId: string) {
     else if (progress > 0) status = 'in_progress'
     planTasks.value[idx] = { ...planTasks.value[idx], progress, status, updatedAt: new Date().toISOString() }
     storage.savePlanTasks(planTasks.value)
+    syncProjectProgress()
   }
 }
 
@@ -531,9 +589,91 @@ function confirmPhaseChange() {
   showPhaseModal.value = false
 }
 
+const availablePhasesToAdd = computed(() => {
+  const currentIds = projectPhases.value.map(p => p.id)
+  return sortedPhases.value.filter(p => !currentIds.includes(p.id))
+})
+
+function openPhaseConfig() {
+  addablePhaseId.value = ''
+  customPhaseName.value = ''
+  customPhaseColor.value = '#6366f1'
+  showPhaseConfigModal.value = true
+}
+
+function addPhaseToProject(phaseId: string) {
+  if (!project.value) return
+  const ids = project.value.phaseIds?.length ? [...project.value.phaseIds] : projectPhases.value.map(p => p.id)
+  if (!ids.includes(phaseId)) {
+    ids.push(phaseId)
+    projectsStore.updateProject(project.value.id, { phaseIds: ids })
+    project.value = projectsStore.getProjectById(project.value.id) || null
+  }
+}
+
+function removePhaseFromProject(phaseId: string) {
+  if (!project.value) return
+  const ids = project.value.phaseIds?.length ? [...project.value.phaseIds] : projectPhases.value.map(p => p.id)
+  const newIds = ids.filter(id => id !== phaseId)
+  projectsStore.updateProject(project.value.id, { phaseIds: newIds })
+  project.value = projectsStore.getProjectById(project.value.id) || null
+  if (project.value.currentPhaseId === phaseId && newIds.length > 0) {
+    projectsStore.updateProject(project.value.id, { currentPhaseId: newIds[0] })
+    project.value = projectsStore.getProjectById(project.value.id) || null
+  }
+}
+
+function resetPhasesToDefault() {
+  if (!project.value) return
+  projectsStore.updateProject(project.value.id, { phaseIds: [] })
+  project.value = projectsStore.getProjectById(project.value.id) || null
+}
+
+function addCustomPhase() {
+  if (!customPhaseName.value.trim() || !project.value) return
+  const newPhase = projectsStore.addPhase(customPhaseName.value.trim(), customPhaseColor.value)
+  const ids = project.value.phaseIds?.length ? [...project.value.phaseIds] : projectPhases.value.map(p => p.id)
+  ids.push(newPhase.id)
+  projectsStore.updateProject(project.value.id, { phaseIds: ids })
+  project.value = projectsStore.getProjectById(project.value.id) || null
+  customPhaseName.value = ''
+  customPhaseColor.value = '#6366f1'
+}
+
+function movePhase(idx: number, dir: number) {
+  if (!project.value) return
+  const ids = project.value.phaseIds?.length ? [...project.value.phaseIds] : projectPhases.value.map(p => p.id)
+  const newIdx = idx + dir
+  if (newIdx < 0 || newIdx >= ids.length) return
+  const tmp = ids[idx]
+  ids[idx] = ids[newIdx]
+  ids[newIdx] = tmp
+  projectsStore.updateProject(project.value.id, { phaseIds: ids })
+  project.value = projectsStore.getProjectById(project.value.id) || null
+}
+
+function onDragStart(idx: number) {
+  dragPhaseIdx.value = idx
+}
+function onDragOver(e: DragEvent) {
+  e.preventDefault()
+}
+function onDrop(idx: number) {
+  if (dragPhaseIdx.value === null || !project.value) return
+  const ids = project.value.phaseIds?.length ? [...project.value.phaseIds] : projectPhases.value.map(p => p.id)
+  const [moved] = ids.splice(dragPhaseIdx.value, 1)
+  ids.splice(idx, 0, moved)
+  projectsStore.updateProject(project.value.id, { phaseIds: ids })
+  project.value = projectsStore.getProjectById(project.value.id) || null
+  dragPhaseIdx.value = null
+}
+function onDragEnd() {
+  dragPhaseIdx.value = null
+}
+
 const currentPhaseIndex = computed(() => {
   if (!project.value) return -1
-  return sortedPhases.value.findIndex(p => p.id === project.value!.currentPhaseId)
+  return projectPhases.value.findIndex(p => p.id === project.value!.currentPhaseId)
 })
 
 const planStats = computed(() => {
@@ -546,13 +686,67 @@ const planStats = computed(() => {
   }
 })
 
+function calcDays(start: string, end: string): number {
+  if (!start || !end) return 0
+  const s = new Date(start + 'T00:00:00')
+  const e = new Date(end + 'T00:00:00')
+  return Math.ceil((e.getTime() - s.getTime()) / 86400000)
+}
+
+const projectClientName = computed(() => {
+  if (!project.value?.clientId) return '—'
+  return clientsStore.clients.find(c => c.id === project.value!.clientId)?.name || '—'
+})
+
+function formatBudget(val: number): string {
+  if (!val) return '¥0'
+  if (val >= 10000) return '¥' + (val / 10000).toFixed(0) + '万'
+  return '¥' + val.toLocaleString()
+}
+
+function openEditProject() {
+  if (!project.value) return
+  editName.value = project.value.name
+  editDesc.value = project.value.description
+  editStatus.value = project.value.status
+  editStartDate.value = project.value.startDate
+  editEndDate.value = project.value.endDate
+  editBudget.value = project.value.budget
+  editManager.value = project.value.manager
+  editClientId.value = project.value.clientId
+  editClientLeaderId.value = project.value.clientLeaderId
+  editClientExecutorId.value = project.value.clientExecutorId
+  editProgress.value = project.value.progress
+  showEditModal.value = true
+}
+
+function saveEditProject() {
+  if (!project.value || !editName.value.trim()) return
+  projectsStore.updateProject(project.value.id, {
+    name: editName.value.trim(),
+    description: editDesc.value,
+    status: editStatus.value,
+    startDate: editStartDate.value,
+    endDate: editEndDate.value,
+    budget: editBudget.value,
+    manager: editManager.value,
+    clientId: editClientId.value,
+    clientLeaderId: editClientLeaderId.value,
+    clientExecutorId: editClientExecutorId.value
+  })
+  project.value = projectsStore.getProjectById(project.value.id) || null
+  showEditModal.value = false
+}
+
 onMounted(() => {
   projectsStore.loadProjects()
   projectsStore.loadPhases()
   todosStore.loadTodos()
   workLogsStore.loadWorkLogs()
+  clientsStore.loadClients()
   project.value = projectsStore.getProjectById(route.params.id as string) || null
   loadPlanTasks()
+  syncProjectProgress()
 })
 </script>
 
@@ -580,6 +774,7 @@ onMounted(() => {
             <span class="status-dot"></span>
             <span>{{ statusText[project.status] }}</span>
           </div>
+          <button class="btn btn-sm btn-outline" @click="openEditProject">编辑</button>
         </div>
         <p class="page-subtitle">{{ project.description || '暂无描述' }}</p>
       </div>
@@ -606,6 +801,19 @@ onMounted(() => {
         <div class="ms-val">{{ projectLogs.length }}</div>
         <div class="ms-lbl">关联日志</div>
       </div>
+    </div>
+
+    <div class="info-strip">
+      <div class="info-strip-content">
+        <span class="info-strip-item"><span class="info-strip-label">负责人</span>{{ project.manager || '—' }}</span>
+        <span class="info-strip-sep">|</span>
+        <span class="info-strip-item"><span class="info-strip-label">预算</span>{{ formatBudget(project.budget) }}</span>
+        <span class="info-strip-sep">|</span>
+        <span class="info-strip-item"><span class="info-strip-label">客户</span>{{ projectClientName }}</span>
+        <span class="info-strip-sep">|</span>
+        <span class="info-strip-item"><span class="info-strip-label">周期</span>{{ project.startDate || '—' }} ~ {{ project.endDate || '—' }}</span>
+      </div>
+      <button class="btn btn-sm btn-outline info-strip-edit" @click="openEditProject">编辑</button>
     </div>
 
     <div class="card">
@@ -668,7 +876,7 @@ onMounted(() => {
 
     <div class="card phase-card">
       <div class="card-header">
-        <span class="card-title">项目阶段</span>
+        <span class="card-title">项目阶段 <button class="btn-icon phase-config-btn" @click="openPhaseConfig" title="配置阶段">⚙️</button></span>
         <div class="phase-header-info">
           <span class="info-pill">
             <span class="info-label">阶段</span>
@@ -676,21 +884,22 @@ onMounted(() => {
               {{ getPhaseName(project.currentPhaseId) }}
             </span>
           </span>
-          <span class="info-pill">
+          <span class="info-pill progress-pill" :style="{ '--pct': project.progress + '%' }">
+            <span class="progress-pill-fill" :class="{ full: project.progress >= 100 }"></span>
             <span class="info-label">进度</span>
-            <span class="info-val">{{ project.progress }}%</span>
-            <span class="inline-progress"><span class="progress-fill" :style="{ width: project.progress + '%' }"></span></span>
+            <span class="info-val progress-val" :style="{ color: project.progress >= 80 ? '#16a34a' : project.progress >= 40 ? '#d97706' : '#6366f1' }">{{ project.progress }}%</span>
           </span>
-          <span class="info-pill">
-            <span class="info-label">时间</span>
-            <span class="info-val">{{ project.startDate }} ~ {{ project.endDate || '待定' }}</span>
+          <span class="info-pill project-cycle-pill">
+            <span class="info-label">项目周期</span>
+            <span class="info-val">{{ project.startDate || '—' }} ~ {{ project.endDate || '—' }}</span>
+            <span v-if="project.startDate && project.endDate" class="cycle-days">(共{{ calcDays(project.startDate, project.endDate) }}天)</span>
           </span>
           <button class="btn btn-sm" @click="openPhaseChange">切换阶段</button>
         </div>
       </div>
       <div class="phase-timeline">
         <div
-          v-for="(phase, i) in sortedPhases"
+          v-for="(phase, i) in projectPhases"
           :key="phase.id"
           :class="['phase-node', { active: phase.id === project.currentPhaseId, done: i < currentPhaseIndex }]"
         >
@@ -737,6 +946,85 @@ onMounted(() => {
       </div>
     </div>
 
+    <div v-if="showEditModal" class="modal-mask" @click.self="showEditModal = false">
+      <div class="modal modal-wide">
+        <div class="modal-header">
+          <h3>编辑项目</h3>
+          <button class="btn-icon" @click="showEditModal = false">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="edit-grid">
+            <div class="form-field">
+              <label>项目名称 <span style="color:var(--rose)">*</span></label>
+              <input v-model="editName" class="input" placeholder="请输入项目名称" />
+            </div>
+            <div class="form-field">
+              <label>项目状态</label>
+              <select v-model="editStatus" class="input">
+                <option value="planning">规划中</option>
+                <option value="in_progress">进行中</option>
+                <option value="completed">已完成</option>
+                <option value="paused">已暂停</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>开始日期</label>
+              <input v-model="editStartDate" type="date" class="input" />
+            </div>
+            <div class="form-field">
+              <label>结束日期</label>
+              <input v-model="editEndDate" type="date" class="input" />
+            </div>
+            <div class="form-field">
+              <label>项目预算</label>
+              <input v-model.number="editBudget" type="number" class="input" placeholder="0" />
+            </div>
+            <div class="form-field">
+              <label>项目负责人</label>
+              <input v-model="editManager" class="input" placeholder="请输入负责人" />
+            </div>
+            <div class="form-field">
+              <label>关联客户</label>
+              <select v-model="editClientId" class="input">
+                <option :value="null">无</option>
+                <option v-for="c in clientsStore.clients" :key="c.id" :value="c.id">{{ c.name }}</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>客户负责人</label>
+              <select v-model="editClientLeaderId" class="input" :disabled="!editClientId">
+                <option :value="null">无</option>
+                <option v-for="ct in editClientContacts.filter(c => c.role === 'leader')" :key="ct.id" :value="ct.id">{{ ct.name }}</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>客户经办人</label>
+              <select v-model="editClientExecutorId" class="input" :disabled="!editClientId">
+                <option :value="null">无</option>
+                <option v-for="ct in editClientContacts.filter(c => c.role === 'executor')" :key="ct.id" :value="ct.id">{{ ct.name }}</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label>项目进度</label>
+              <div class="auto-progress-display">
+                <div class="auto-progress-bar"><div class="auto-progress-fill" :style="{ width: autoProgress + '%' }"></div></div>
+                <span class="auto-progress-val">{{ autoProgress }}%</span>
+                <span class="auto-progress-hint">由计划任务自动计算</span>
+              </div>
+            </div>
+          </div>
+          <div class="form-field" style="margin-top: 4px;">
+            <label>项目描述</label>
+            <textarea v-model="editDesc" class="input" rows="3" placeholder="请输入项目描述"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" @click="showEditModal = false">取消</button>
+          <button class="btn btn-primary" @click="saveEditProject">保存</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="showPhaseModal" class="modal-mask" @click.self="showPhaseModal = false">
       <div class="modal">
         <div class="modal-header">
@@ -747,7 +1035,7 @@ onMounted(() => {
           <div class="form-field">
             <label>目标阶段</label>
             <select v-model="newPhaseId" class="input">
-              <option v-for="ph in sortedPhases" :key="ph.id" :value="ph.id">{{ ph.name }}</option>
+              <option v-for="ph in projectPhases" :key="ph.id" :value="ph.id">{{ ph.name }}</option>
             </select>
           </div>
           <div class="form-field">
@@ -758,6 +1046,60 @@ onMounted(() => {
         <div class="modal-footer">
           <button class="btn" @click="showPhaseModal = false">取消</button>
           <button class="btn btn-primary" @click="confirmPhaseChange">确认切换</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showPhaseConfigModal" class="modal-mask" @click.self="showPhaseConfigModal = false">
+      <div class="modal modal-wide">
+        <div class="modal-header">
+          <h3>配置项目阶段</h3>
+          <button class="btn-icon" @click="showPhaseConfigModal = false">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="phase-config-list">
+            <div
+              v-for="(phase, i) in projectPhases"
+              :key="phase.id"
+              class="phase-config-item"
+              :class="{ 'drag-over': dragPhaseIdx === i }"
+              draggable="true"
+              @dragstart="onDragStart(i)"
+              @dragover="onDragOver"
+              @drop="onDrop(i)"
+              @dragend="onDragEnd"
+            >
+              <span class="phase-config-drag">⠿</span>
+              <span class="phase-config-order">{{ i + 1 }}</span>
+              <span class="phase-config-dot" :style="{ background: phase.color }"></span>
+              <span class="phase-config-name">{{ phase.name }}</span>
+              <div class="phase-config-actions">
+                <button class="btn-icon" @click="movePhase(i, -1)" :disabled="i === 0" title="上移">↑</button>
+                <button class="btn-icon" @click="movePhase(i, 1)" :disabled="i === projectPhases.length - 1" title="下移">↓</button>
+                <button class="btn-icon btn-icon-danger" @click="removePhaseFromProject(phase.id)" title="移除">&times;</button>
+              </div>
+            </div>
+          </div>
+          <div v-if="projectPhases.length === 0" class="card-empty" style="padding: 10px 0;">暂无阶段，请从下方添加</div>
+          <div class="phase-config-add-row">
+            <select v-model="addablePhaseId" class="input" style="flex:1">
+              <option value="" disabled>选择要添加的阶段...</option>
+              <option v-for="ph in availablePhasesToAdd" :key="ph.id" :value="ph.id">{{ ph.name }}</option>
+            </select>
+            <button class="btn btn-sm btn-primary" @click="addPhaseToProject(addablePhaseId); addablePhaseId = ''" :disabled="!addablePhaseId">添加</button>
+            <button class="btn btn-sm" @click="resetPhasesToDefault" title="恢复所有阶段">恢复默认</button>
+          </div>
+          <div class="phase-config-custom">
+            <div class="phase-config-custom-title">添加自定义阶段</div>
+            <div class="phase-config-custom-row">
+              <input v-model="customPhaseName" class="input" placeholder="阶段名称" style="flex:1" />
+              <input v-model="customPhaseColor" type="color" class="color-pick" />
+              <button class="btn btn-sm btn-primary" @click="addCustomPhase" :disabled="!customPhaseName.trim()">创建并添加</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn" @click="showPhaseConfigModal = false">关闭</button>
         </div>
       </div>
     </div>
@@ -929,6 +1271,72 @@ onMounted(() => {
 .chip-gray { background: #f8fafc; color: #64748b; }
 .chip-gray .status-dot { background: #94a3b8; }
 
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-light, #e2e8f0);
+  color: var(--text-secondary, #475569);
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-weight: 500;
+}
+.btn-outline:hover {
+  border-color: var(--primary, #6366f1);
+  color: var(--primary, #6366f1);
+  background: #eef2ff;
+}
+
+.info-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border-light, #e2e8f0);
+  border-radius: var(--radius, 10px);
+  font-size: 13px;
+}
+.info-strip-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.info-strip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text, #1e293b);
+  font-weight: 500;
+}
+.info-strip-label {
+  font-size: 11px;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 400;
+}
+.info-strip-sep {
+  color: var(--border-light, #e2e8f0);
+  font-size: 12px;
+}
+.info-strip-edit {
+  flex-shrink: 0;
+}
+
+.project-cycle-pill {
+  background: #f0f9ff;
+  padding: 3px 10px;
+  border-radius: var(--radius-full, 20px);
+}
+.cycle-days {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0284c7;
+  margin-left: 2px;
+}
+
 .card { margin-bottom: 16px; }
 .card:last-of-type { margin-bottom: 0; }
 .modal-wide { width: 600px; }
@@ -939,6 +1347,69 @@ onMounted(() => {
 .ms-val.ms-green { color: #22c55e; }
 .ms-val.ms-blue { color: #3b82f6; }
 .ms-lbl { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+.edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+.auto-progress-display {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; background: var(--bg, #f8fafc);
+  border-radius: 8px; border: 1px solid var(--border-light, #e2e8f0);
+}
+.auto-progress-bar {
+  flex: 1; height: 6px; background: var(--border-light, #e2e8f0);
+  border-radius: 3px; overflow: hidden;
+}
+.auto-progress-fill {
+  height: 100%; background: var(--primary, #6366f1);
+  border-radius: 3px; transition: width 0.3s;
+}
+.auto-progress-val {
+  font-size: 16px; font-weight: 700; color: var(--primary, #6366f1);
+  min-width: 40px;
+}
+.auto-progress-hint {
+  font-size: 11px; color: var(--text-muted, #94a3b8);
+  white-space: nowrap;
+}
+
+.progress-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.progress-slider {
+  flex: 1;
+  accent-color: var(--primary);
+  height: 6px;
+}
+.progress-slider-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  min-width: 36px;
+  text-align: right;
+}
+
+.progress-val { font-weight: 700; font-size: 14px; min-width: 36px; position: relative; z-index: 1; }
+.progress-pill {
+  position: relative; overflow: hidden;
+  padding: 2px 10px; border-radius: var(--radius-full);
+  background: var(--border-light, #e2e8f0) !important;
+}
+.progress-pill-fill {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: var(--pct, 0%);
+  background: linear-gradient(90deg, rgba(99,102,241,0.15), rgba(99,102,241,0.25));
+  border-radius: var(--radius-full) 0 0 var(--radius-full);
+  transition: width 0.4s ease;
+  z-index: 0;
+}
+.progress-pill-fill.full {
+  border-radius: var(--radius-full);
+}
 
 .phase-timeline {
   display: flex;
@@ -982,8 +1453,8 @@ onMounted(() => {
 .info-pill { display: inline-flex; align-items: center; gap: 5px; }
 .info-label { font-size: 11px; color: var(--text-muted); }
 .info-val { font-size: 12px; font-weight: 600; color: var(--text); }
-.inline-progress { display: inline-block; width: 50px; height: 4px; background: var(--border-light); border-radius: 2px; overflow: hidden; vertical-align: middle; }
-.inline-progress .progress-fill { height: 100%; background: var(--primary); border-radius: 2px; }
+.inline-progress { display: inline-block; width: 60px; height: 6px; background: var(--border-light); border-radius: 3px; overflow: hidden; vertical-align: middle; }
+.inline-progress .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
 .phase-tag {
   font-size: 11px; font-weight: 500; padding: 1px 7px;
   border-radius: var(--radius-full); display: inline-block;
@@ -1137,5 +1608,42 @@ onMounted(() => {
 .todo-task-tag {
   font-size: 10px; color: var(--primary); background: #eef2ff;
   padding: 1px 6px; border-radius: var(--radius-full); flex-shrink: 0;
+}
+.phase-config-btn {
+  font-size: 14px; vertical-align: middle; cursor: pointer;
+  opacity: 0.6; transition: opacity 0.15s;
+}
+.phase-config-btn:hover { opacity: 1; }
+.phase-config-list {
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 260px; overflow-y: auto; margin-bottom: 12px;
+}
+.phase-config-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: 1px solid var(--border-light);
+  border-radius: var(--radius); background: var(--bg-card);
+  transition: all 0.15s; cursor: grab;
+}
+.phase-config-item.drag-over { border-color: var(--primary); background: #eef2ff; }
+.phase-config-drag { color: var(--text-muted); font-size: 14px; cursor: grab; user-select: none; }
+.phase-config-order { font-size: 11px; font-weight: 700; color: var(--text-muted); min-width: 18px; text-align: center; }
+.phase-config-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.phase-config-name { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); }
+.phase-config-actions { display: flex; align-items: center; gap: 2px; }
+.phase-config-actions .btn-icon { font-size: 13px; padding: 2px 5px; }
+.btn-icon-danger { color: var(--rose, #ef4444); }
+.btn-icon-danger:hover { color: #dc2626; }
+.phase-config-add-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 0; border-top: 1px solid var(--border-light);
+}
+.phase-config-custom {
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-light);
+}
+.phase-config-custom-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+.phase-config-custom-row { display: flex; align-items: center; gap: 8px; }
+.color-pick {
+  width: 36px; height: 32px; border: 1px solid var(--border-light);
+  border-radius: var(--radius); cursor: pointer; padding: 2px;
 }
 </style>

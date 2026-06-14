@@ -117,7 +117,9 @@ export function seedAllData() {
       progress: 45, startDate: daysAgo(60), endDate: daysAgo(-90),
       status: 'in_progress', currentPhaseId: 'solution',
       phaseHistory: makePhaseHistory([['initiation', 60, '立项完成'], ['survey', 45, '需求调研两周'], ['solution', 20, '方案编写中']]),
-      clientId: clientIdMap.bigdata, clientLeaderId: 'ct_1_1', clientExecutorId: 'ct_1_2', budget: 1200, manager: '张伟',
+      clientId: clientIdMap.bigdata, clientLeaderId: 'ct_1_1', clientExecutorId: 'ct_1_2',
+      phaseIds: ['initiation', 'survey', 'solution', 'bidding', 'contract', 'detail_design', 'implementation', 'testing', 'trial', 'delivery', 'maintenance'],
+      budget: 1200, manager: '张伟',
       createdAt: iso(daysAgo(60)), updatedAt: iso(daysAgo(1))
     },
     {
@@ -125,7 +127,9 @@ export function seedAllData() {
       progress: 20, startDate: daysAgo(35), endDate: daysAgo(-150),
       status: 'in_progress', currentPhaseId: 'survey',
       phaseHistory: makePhaseHistory([['initiation', 35, '可行性报告通过'], ['survey', 10, '正在走访学校']]),
-      clientId: clientIdMap.edu, clientLeaderId: 'ct_2_1', clientExecutorId: 'ct_2_2', budget: 800, manager: '李芳',
+      clientId: clientIdMap.edu, clientLeaderId: 'ct_2_1', clientExecutorId: 'ct_2_2',
+      phaseIds: ['initiation', 'survey', 'solution', 'bidding', 'contract', 'implementation', 'testing', 'delivery'],
+      budget: 800, manager: '李芳',
       createdAt: iso(daysAgo(35)), updatedAt: iso(daysAgo(4))
     },
     {
@@ -133,7 +137,9 @@ export function seedAllData() {
       progress: 60, startDate: daysAgo(50), endDate: daysAgo(-30),
       status: 'in_progress', currentPhaseId: 'bidding',
       phaseHistory: makePhaseHistory([['initiation', 50], ['survey', 40], ['solution', 30, '方案评审通过'], ['bidding', 10, '标书编写中']]),
-      clientId: clientIdMap.emergency, clientLeaderId: 'ct_6_1', clientExecutorId: 'ct_6_2', budget: 650, manager: '王强',
+      clientId: clientIdMap.emergency, clientLeaderId: 'ct_6_1', clientExecutorId: 'ct_6_2',
+      phaseIds: ['initiation', 'survey', 'solution', 'bidding', 'contract', 'implementation', 'testing', 'trial', 'delivery'],
+      budget: 650, manager: '王强',
       createdAt: iso(daysAgo(50)), updatedAt: iso(daysAgo(1))
     },
     {
@@ -141,7 +147,9 @@ export function seedAllData() {
       progress: 10, startDate: daysAgo(15), endDate: daysAgo(-180),
       status: 'in_progress', currentPhaseId: 'initiation',
       phaseHistory: makePhaseHistory([['initiation', 15, '刚签约，项目启动']]),
-      clientId: clientIdMap.transport, clientLeaderId: 'ct_4_1', clientExecutorId: 'ct_4_2', budget: 350, manager: '陈明',
+      clientId: clientIdMap.transport, clientLeaderId: 'ct_4_1', clientExecutorId: 'ct_4_2',
+      phaseIds: ['initiation', 'survey', 'solution', 'delivery'],
+      budget: 350, manager: '陈明',
       createdAt: iso(daysAgo(15)), updatedAt: iso(daysAgo(2))
     },
     {
@@ -149,7 +157,9 @@ export function seedAllData() {
       progress: 100, startDate: daysAgo(180), endDate: daysAgo(15),
       status: 'completed', currentPhaseId: 'maintenance',
       phaseHistory: makePhaseHistory([['initiation', 180], ['survey', 160], ['solution', 140], ['bidding', 120], ['contract', 100], ['detail_design', 90], ['implementation', 70], ['testing', 40], ['trial', 25], ['delivery', 15, '已验收交付']]),
-      clientId: clientIdMap.health, clientLeaderId: 'ct_5_1', clientExecutorId: null, budget: 960, manager: '赵丽',
+      clientId: clientIdMap.health, clientLeaderId: 'ct_5_1', clientExecutorId: null,
+      phaseIds: ['initiation', 'survey', 'solution', 'bidding', 'contract', 'detail_design', 'implementation', 'testing', 'trial', 'delivery', 'maintenance'],
+      budget: 960, manager: '赵丽',
       createdAt: iso(daysAgo(180)), updatedAt: iso(daysAgo(15))
     },
     {
@@ -157,7 +167,9 @@ export function seedAllData() {
       progress: 70, startDate: daysAgo(80), endDate: daysAgo(-20),
       status: 'in_progress', currentPhaseId: 'implementation',
       phaseHistory: makePhaseHistory([['initiation', 80], ['survey', 70], ['solution', 55], ['bidding', 45], ['contract', 35], ['detail_design', 25], ['implementation', 10, '迁移实施中']]),
-      clientId: clientIdMap.smartcity, clientLeaderId: 'ct_3_1', clientExecutorId: 'ct_3_2', budget: 580, manager: '刘洋',
+      clientId: clientIdMap.smartcity, clientLeaderId: 'ct_3_1', clientExecutorId: 'ct_3_2',
+      phaseIds: ['initiation', 'survey', 'solution', 'detail_design', 'implementation', 'testing', 'delivery'],
+      budget: 580, manager: '刘洋',
       createdAt: iso(daysAgo(80)), updatedAt: iso(daysAgo(2))
     }
   ]

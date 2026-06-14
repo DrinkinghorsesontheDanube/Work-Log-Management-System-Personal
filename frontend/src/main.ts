@@ -7,9 +7,10 @@ import App from './App.vue'
 import { seedAllData } from './utils/seedData'
 import './style.css'
 
-if (!localStorage.getItem('worklog_seeded_v5')) {
+if (!localStorage.getItem('worklog_seeded_v6')) {
   seedAllData()
-  localStorage.setItem('worklog_seeded_v5', '1')
+  localStorage.setItem('worklog_seeded_v6', '1')
+  localStorage.removeItem('worklog_seeded_v5')
   localStorage.removeItem('worklog_seeded_v4')
   localStorage.removeItem('worklog_seeded_v3')
   localStorage.removeItem('worklog_seeded_v2')

@@ -11,7 +11,7 @@ export const useProjectsStore = defineStore('projects', () => {
 
   function loadProjects() {
     projects.value = storage.getProjects().map((p: any) => ({
-      clientLeaderId: null, clientExecutorId: null, ...p
+      clientLeaderId: null, clientExecutorId: null, phaseIds: [], ...p
     }))
   }
 
