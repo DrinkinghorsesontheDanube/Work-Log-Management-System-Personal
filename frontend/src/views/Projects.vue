@@ -423,15 +423,20 @@ onMounted(() => {
         </div>
         <p class="proj-desc">{{ p.description || '暂无描述' }}</p>
         <div class="proj-meta">
-          <span v-if="p.manager" class="meta-item">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            {{ p.manager }}
-          </span>
-          <span v-if="getClientName(p.clientId)" class="meta-item client-meta">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-            {{ getClientName(p.clientId) }}<template v-if="getContactName(p.clientId, p.clientLeaderId)"> · 负责人: {{ getContactName(p.clientId, p.clientLeaderId) }}</template><template v-if="getContactName(p.clientId, p.clientExecutorId)"> · 经办人: {{ getContactName(p.clientId, p.clientExecutorId) }}</template>
-          </span>
-          <span v-if="p.budget" class="meta-item budget-tag">{{ formatBudget(p.budget) }}</span>
+          <div v-if="p.manager" class="meta-row">
+            <span class="meta-item">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              {{ p.manager }}
+            </span>
+            <span v-if="p.budget" class="meta-item budget-tag">{{ formatBudget(p.budget) }}</span>
+          </div>
+          <div v-if="getClientName(p.clientId)" class="meta-row">
+            <span class="meta-item client-meta">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              {{ getClientName(p.clientId) }}<template v-if="getContactName(p.clientId, p.clientLeaderId)"> · 负责人: {{ getContactName(p.clientId, p.clientLeaderId) }}</template><template v-if="getContactName(p.clientId, p.clientExecutorId)"> · 经办人: {{ getContactName(p.clientId, p.clientExecutorId) }}</template>
+            </span>
+            <span v-if="!p.manager && p.budget" class="meta-item budget-tag">{{ formatBudget(p.budget) }}</span>
+          </div>
         </div>
         <div class="proj-phase">
           <span class="phase-tag" :style="{ color: getPhaseColor(p.currentPhaseId), background: getPhaseColor(p.currentPhaseId) + '18' }">{{ getPhaseName(p.currentPhaseId) }}</span>
@@ -500,9 +505,13 @@ onMounted(() => {
             <td class="col-client">
               <template v-if="getClientName(p.clientId)">
                 <div class="cell-name-sm">{{ getClientName(p.clientId) }}</div>
-                <div v-if="getContactName(p.clientId, p.clientLeaderId) || getContactName(p.clientId, p.clientExecutorId)" class="cell-contact-info">
-                  <span v-if="getContactName(p.clientId, p.clientLeaderId)">负责人: {{ getContactName(p.clientId, p.clientLeaderId) }}</span>
-                  <span v-if="getContactName(p.clientId, p.clientExecutorId)">经办人: {{ getContactName(p.clientId, p.clientExecutorId) }}</span>
+                <div class="cell-contact-info">
+                  <span v-if="getContactName(p.clientId, p.clientLeaderId) && getContactName(p.clientId, p.clientExecutorId)">
+                    {{ getContactName(p.clientId, p.clientLeaderId) }} / {{ getContactName(p.clientId, p.clientExecutorId) }}
+                  </span>
+                  <span v-else-if="getContactName(p.clientId, p.clientLeaderId)">{{ getContactName(p.clientId, p.clientLeaderId) }}</span>
+                  <span v-else-if="getContactName(p.clientId, p.clientExecutorId)">{{ getContactName(p.clientId, p.clientExecutorId) }}</span>
+                  <span v-else class="cell-no-contact">暂无联系人</span>
                 </div>
               </template>
               <span v-else class="cell-empty">-</span>
@@ -667,7 +676,8 @@ onMounted(() => {
 .card-top { padding: 14px 18px 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .proj-name { font-size: 15px; font-weight: 600; color: var(--text); margin: 0; line-height: 1.4; }
 .proj-desc { font-size: 12px; color: var(--text-muted); padding: 4px 18px 0; margin: 0; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.proj-meta { display: flex; gap: 12px; padding: 8px 18px 0; flex-wrap: wrap; }
+.proj-meta { display: flex; flex-direction: column; gap: 2px; padding: 8px 18px 0; }
+.meta-row { display: flex; align-items: center; gap: 12px; }
 .meta-item { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
 .budget-tag { color: var(--amber); font-weight: 600; }
 .proj-phase { display: flex; align-items: center; gap: 8px; padding: 8px 18px 0; }
@@ -721,7 +731,8 @@ onMounted(() => {
 .input-empty { color: var(--text-muted); font-size: 13px; padding: 6px 12px; background: var(--bg); cursor: default; }
 .client-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .cell-name-sm { font-size: 12px; font-weight: 600; color: var(--text); }
-.cell-contact-info { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: flex; flex-direction: column; gap: 1px; text-align: left; }
+.cell-contact-info { font-size: 11px; color: var(--text-muted); margin-top: 2px; text-align: center; line-height: 1.4; }
+.cell-no-contact { font-size: 11px; color: var(--text-muted); opacity: 0.6; }
 
 .phase-section {
   background: var(--bg-card);
