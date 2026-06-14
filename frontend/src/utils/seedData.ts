@@ -35,7 +35,9 @@ function makePlanTask(partial: { id: string; projectId: string; name: string; st
 }
 
 export function seedAllData() {
+  const savedAiProvider = storage.getAiProvider()
   storage.clearAllData()
+  if (savedAiProvider) storage.saveAiProvider(savedAiProvider)
 
   const clients: Client[] = [
     {
