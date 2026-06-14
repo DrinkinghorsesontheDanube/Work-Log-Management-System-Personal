@@ -9,7 +9,9 @@ export const useTodosStore = defineStore('todos', () => {
   const todos = ref<Todo[]>([])
 
   function loadTodos() {
-    todos.value = storage.getTodos()
+    todos.value = storage.getTodos().map((t: any) => ({
+      category: 'project', ...t
+    }))
   }
 
   function saveTodos() {

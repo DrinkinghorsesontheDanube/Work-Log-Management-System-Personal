@@ -7,9 +7,9 @@ import App from './App.vue'
 import { seedAllData } from './utils/seedData'
 import './style.css'
 
-if (!localStorage.getItem('worklog_seeded_v8')) {
+if (!localStorage.getItem('worklog_seeded_v10')) {
   seedAllData()
-  localStorage.setItem('worklog_seeded_v8', '1')
+  localStorage.setItem('worklog_seeded_v10', '1')
 }
 
 const app = createApp(App)

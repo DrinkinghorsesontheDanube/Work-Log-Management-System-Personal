@@ -64,12 +64,24 @@ export interface PlanTask {
   updatedAt: string
 }
 
+export type TodoCategoryId = 'document' | 'client' | 'project' | 'meeting' | 'review' | 'other'
+
+export const TODO_CATEGORIES: { id: TodoCategoryId; name: string; icon: string; color: string }[] = [
+  { id: 'project', name: '项目事务', icon: '📁', color: '#d97706' },
+  { id: 'client', name: '客户跟进', icon: '🤝', color: '#0891b2' },
+  { id: 'document', name: '文档编写', icon: '📝', color: '#6366f1' },
+  { id: 'meeting', name: '会议沟通', icon: '🏛️', color: '#8b5cf6' },
+  { id: 'review', name: '评审审批', icon: '✅', color: '#059669' },
+  { id: 'other', name: '其他', icon: '📌', color: '#94a3b8' }
+]
+
 export interface Todo {
   id: string
   title: string
   description: string
   status: 'pending' | 'in_progress' | 'completed'
   priority: 'low' | 'medium' | 'high'
+  category: TodoCategoryId
   dueDate: string
   projectId: string | null
   planTaskId: string | null

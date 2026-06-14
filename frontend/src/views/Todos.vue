@@ -1,21 +1,35 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, inject } from 'vue'
 import { useTodosStore } from '../stores/todos'
 import { useProjectsStore } from '../stores/projects'
 import ConfirmModal from '../components/ConfirmModal.vue'
-import type { Todo } from '../types'
+import type { Todo, TodoCategoryId } from '../types'
+import { TODO_CATEGORIES } from '../types'
 
 const todosStore = useTodosStore()
 const projectsStore = useProjectsStore()
+const showAiConfigPrompt = inject<() => void>('showAiConfigPrompt', () => {})
+
+const searchQuery = ref('')
+const filterPriority = ref<'all' | 'high' | 'medium' | 'low'>('all')
+const filterCategory = ref<'all' | TodoCategoryId>('all')
+const viewMode = ref<'board' | 'list'>('board')
+const batchMode = ref(false)
+const selectedIds = ref<Set<string>>(new Set())
 
 const showModal = ref(false)
 const editingTodo = ref<Todo | null>(null)
 const formTitle = ref('')
 const formDesc = ref('')
 const formPriority = ref<Todo['priority']>('medium')
+const formCategory = ref<TodoCategoryId>('project')
 const formDueDate = ref('')
 const formProjectId = ref<string | null>(null)
-const filter = ref<'all' | 'pending' | 'in_progress' | 'completed'>('all')
+const formStatus = ref<Todo['status']>('pending')
+
+const quickTitle = ref('')
+const quickCategory = ref<TodoCategoryId>('project')
+
 const confirmVisible = ref(false)
 const confirmTitle = ref('')
 const confirmMessage = ref('')
@@ -32,35 +46,120 @@ function showConfirm(title: string, message: string, danger = false): Promise<bo
 function onConfirmOk() { confirmVisible.value = false; confirmResolve?.(true) }
 function onConfirmCancel() { confirmVisible.value = false; confirmResolve?.(false) }
 
-const priorityOptions = [
-  { label: '紧急', value: 'high' },
-  { label: '中', value: 'medium' },
-  { label: '低', value: 'low' }
-]
+const priorityConfig: Record<string, { label: string; color: string; bg: string }> = {
+  high: { label: '紧急', color: '#ef4444', bg: '#fef2f2' },
+  medium: { label: '中', color: '#f59e0b', bg: '#fffbeb' },
+  low: { label: '低', color: '#94a3b8', bg: '#f1f5f9' }
+}
 
-const filteredTodos = computed(() => {
-  let list = [...todosStore.todos]
-  if (filter.value !== 'all') {
-    list = list.filter(t => t.status === filter.value)
-  }
-  const pri: Record<string, number> = { high: 0, medium: 1, low: 2 }
-  return list.sort((a, b) => {
-    if (a.status === 'completed' && b.status !== 'completed') return 1
-    if (a.status !== 'completed' && b.status === 'completed') return -1
-    return (pri[a.priority] ?? 1) - (pri[b.priority] ?? 1)
-  })
-})
+const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
+  pending: { label: '待处理', color: '#f59e0b', bg: '#fffbeb' },
+  in_progress: { label: '进行中', color: '#3b82f6', bg: '#eff6ff' },
+  completed: { label: '已完成', color: '#10b981', bg: '#ecfdf5' }
+}
 
-const filterCounts = computed(() => ({
-  all: todosStore.todos.length,
-  pending: todosStore.pendingTodos.length,
-  in_progress: todosStore.inProgressTodos.length,
-  completed: todosStore.completedTodos.length
-}))
+function getCategoryInfo(id: TodoCategoryId) {
+  return TODO_CATEGORIES.find(c => c.id === id) || TODO_CATEGORIES.find(c => c.id === 'other')!
+}
 
 function getProjectName(id: string | null) {
   if (!id) return ''
   return projectsStore.projects.find(p => p.id === id)?.name || ''
+}
+
+function getTodayStr() {
+  return new Date().toISOString().split('T')[0]
+}
+
+function getWeekDates() {
+  const now = new Date()
+  const day = now.getDay() || 7
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - day + 1)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  return {
+    start: monday.toISOString().split('T')[0],
+    end: sunday.toISOString().split('T')[0]
+  }
+}
+
+const stats = computed(() => {
+  const all = todosStore.todos
+  const total = all.length
+  const completedCount = all.filter(t => t.status === 'completed').length
+  const rate = total > 0 ? Math.round((completedCount / total) * 100) : 0
+  const today = getTodayStr()
+  const week = getWeekDates()
+  const overdue = all.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate < today).length
+  const todayCount = all.filter(t => t.dueDate === today && t.status !== 'completed').length
+  const weekCount = all.filter(t => t.status !== 'completed' && t.dueDate >= week.start && t.dueDate <= week.end).length
+  return { total, completed: completedCount, rate, overdue, today: todayCount, week: weekCount }
+})
+
+const filteredTodos = computed(() => {
+  let list = [...todosStore.todos]
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter(t =>
+      t.title.toLowerCase().includes(q) ||
+      t.description.toLowerCase().includes(q) ||
+      getProjectName(t.projectId).toLowerCase().includes(q)
+    )
+  }
+  if (filterPriority.value !== 'all') {
+    list = list.filter(t => t.priority === filterPriority.value)
+  }
+  if (filterCategory.value !== 'all') {
+    list = list.filter(t => t.category === filterCategory.value)
+  }
+  const pri: Record<string, number> = { high: 0, medium: 1, low: 2 }
+  list.sort((a, b) => (pri[a.priority] ?? 1) - (pri[b.priority] ?? 1))
+  return list
+})
+
+const pendingColumn = computed(() => filteredTodos.value.filter(t => t.status === 'pending'))
+const inProgressColumn = computed(() => filteredTodos.value.filter(t => t.status === 'in_progress'))
+const completedColumn = computed(() => filteredTodos.value.filter(t => t.status === 'completed'))
+
+function cycleStatus(todo: Todo) {
+  const next: Record<string, Todo['status']> = {
+    pending: 'in_progress',
+    in_progress: 'completed',
+    completed: 'pending'
+  }
+  todosStore.updateTodo(todo.id, { status: next[todo.status] })
+}
+
+function formatDueDate(date: string): string {
+  if (!date) return ''
+  const today = getTodayStr()
+  if (date === today) return '今天'
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  if (date === tomorrow.toISOString().split('T')[0]) return '明天'
+  const parts = date.split('-')
+  return `${parseInt(parts[1])}/${parseInt(parts[2])}`
+}
+
+function isOverdue(todo: Todo): boolean {
+  return todo.status !== 'completed' && !!todo.dueDate && todo.dueDate < getTodayStr()
+}
+
+function handleQuickAdd() {
+  const title = quickTitle.value.trim()
+  if (!title) return
+  todosStore.addTodo({
+    title,
+    description: '',
+    status: 'pending',
+    priority: 'medium',
+    category: quickCategory.value,
+    dueDate: '',
+    projectId: null,
+    planTaskId: null
+  })
+  quickTitle.value = ''
 }
 
 function openAdd() {
@@ -68,8 +167,10 @@ function openAdd() {
   formTitle.value = ''
   formDesc.value = ''
   formPriority.value = 'medium'
-  formDueDate.value = new Date().toISOString().split('T')[0]
+  formCategory.value = 'project'
+  formDueDate.value = ''
   formProjectId.value = null
+  formStatus.value = 'pending'
   showModal.value = true
 }
 
@@ -78,48 +179,89 @@ function openEdit(todo: Todo) {
   formTitle.value = todo.title
   formDesc.value = todo.description
   formPriority.value = todo.priority
+  formCategory.value = todo.category
   formDueDate.value = todo.dueDate
   formProjectId.value = todo.projectId
+  formStatus.value = todo.status
   showModal.value = true
 }
 
-function save() {
+function saveTodo() {
   if (!formTitle.value.trim()) return
   if (editingTodo.value) {
     todosStore.updateTodo(editingTodo.value.id, {
       title: formTitle.value,
       description: formDesc.value,
       priority: formPriority.value,
+      category: formCategory.value,
       dueDate: formDueDate.value,
-      projectId: formProjectId.value
+      projectId: formProjectId.value,
+      status: formStatus.value
     })
   } else {
     todosStore.addTodo({
       title: formTitle.value,
       description: formDesc.value,
-      status: 'pending',
       priority: formPriority.value,
+      category: formCategory.value,
       dueDate: formDueDate.value,
-      projectId: formProjectId.value
+      projectId: formProjectId.value,
+      planTaskId: null,
+      status: formStatus.value
     })
   }
   showModal.value = false
 }
 
-function toggleStatus(todo: Todo) {
-  const next = todo.status === 'completed' ? 'pending' : 'completed'
-  todosStore.updateTodo(todo.id, { status: next })
-}
-
-function remove(id: string) {
+async function removeTodo(id: string) {
   const todo = todosStore.todos.find(t => t.id === id)
-  showConfirm(`删除「${todo?.title || '该待办'}」`, '此操作不可撤销', true).then(ok => {
-    if (ok) todosStore.deleteTodo(id)
-  })
+  const ok = await showConfirm('删除待办', `确定删除「${todo?.title || ''}」？此操作不可撤销。`, true)
+  if (ok) todosStore.deleteTodo(id)
 }
 
-function statusLabel(s: string) {
-  return s === 'completed' ? '已完成' : s === 'in_progress' ? '进行中' : '待处理'
+function toggleBatchMode() {
+  batchMode.value = !batchMode.value
+  if (!batchMode.value) {
+    selectedIds.value.clear()
+  }
+}
+
+function toggleSelect(id: string) {
+  if (selectedIds.value.has(id)) {
+    selectedIds.value.delete(id)
+  } else {
+    selectedIds.value.add(id)
+  }
+  selectedIds.value = new Set(selectedIds.value)
+}
+
+function isSelected(id: string) {
+  return selectedIds.value.has(id)
+}
+
+function batchComplete() {
+  for (const id of selectedIds.value) {
+    todosStore.updateTodo(id, { status: 'completed' })
+  }
+  selectedIds.value.clear()
+  batchMode.value = false
+}
+
+async function batchDelete() {
+  const count = selectedIds.value.size
+  const ok = await showConfirm('批量删除', `确定删除选中的 ${count} 个待办？此操作不可撤销。`, true)
+  if (ok) {
+    for (const id of selectedIds.value) {
+      todosStore.deleteTodo(id)
+    }
+    selectedIds.value.clear()
+    batchMode.value = false
+  }
+}
+
+function cancelBatch() {
+  selectedIds.value.clear()
+  batchMode.value = false
 }
 
 onMounted(() => {
@@ -133,177 +275,1109 @@ onMounted(() => {
     <div class="page-header">
       <div>
         <h1 class="page-title">待办事项</h1>
-        <p class="page-subtitle">管理任务和待跟进事项</p>
+        <p class="page-subtitle">管理你的任务和待办事项</p>
       </div>
-      <button class="btn btn-primary" @click="openAdd">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        新建待办
-      </button>
     </div>
 
-    <div class="card">
-      <div class="card-header">
-        <div class="filters">
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-val">{{ stats.total }}</span>
+        <span class="stat-lbl">全部</span>
+      </div>
+      <div class="stat-item stat-rate">
+        <div class="rate-info">
+          <span class="stat-val">{{ stats.rate }}%</span>
+          <span class="stat-lbl">完成率</span>
+        </div>
+        <div class="rate-bar">
+          <div class="rate-fill" :style="{ width: stats.rate + '%' }"></div>
+        </div>
+      </div>
+      <div class="stat-item stat-overdue">
+        <span class="stat-val stat-val-rose">{{ stats.overdue }}</span>
+        <span class="stat-lbl">逾期</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-val">{{ stats.today }}</span>
+        <span class="stat-lbl">今日</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-val">{{ stats.week }}</span>
+        <span class="stat-lbl">本周</span>
+      </div>
+    </div>
+
+    <div class="quick-add card">
+      <input
+        v-model="quickTitle"
+        class="quick-input"
+        placeholder="快速添加待办，输入标题后按 Enter..."
+        @keydown.enter="handleQuickAdd"
+      />
+      <select v-model="quickCategory" class="quick-select">
+        <option v-for="cat in TODO_CATEGORIES" :key="cat.id" :value="cat.id">{{ cat.icon }} {{ cat.name }}</option>
+      </select>
+      <button class="btn btn-primary btn-sm" @click="handleQuickAdd" :disabled="!quickTitle.trim()">添加</button>
+    </div>
+
+    <div class="toolbar card">
+      <div class="toolbar-left">
+        <input v-model="searchQuery" class="input search-input" placeholder="搜索待办标题、描述、项目..." />
+        <div class="pill-group">
+          <button :class="['pill', { active: filterPriority === 'all' }]" @click="filterPriority = 'all'">全部</button>
+          <button :class="['pill', { active: filterPriority === 'high' }]" @click="filterPriority = 'high'">
+            <span class="pill-dot" style="background:#ef4444"></span>紧急
+          </button>
+          <button :class="['pill', { active: filterPriority === 'medium' }]" @click="filterPriority = 'medium'">
+            <span class="pill-dot" style="background:#f59e0b"></span>中
+          </button>
+          <button :class="['pill', { active: filterPriority === 'low' }]" @click="filterPriority = 'low'">
+            <span class="pill-dot" style="background:#94a3b8"></span>低
+          </button>
+        </div>
+        <div class="pill-group">
+          <button :class="['pill', { active: filterCategory === 'all' }]" @click="filterCategory = 'all'">全部类型</button>
           <button
-            v-for="f in (['all', 'pending', 'in_progress', 'completed'] as const)"
-            :key="f"
-            :class="['btn', 'btn-sm', { 'btn-primary': filter === f }]"
-            @click="filter = f"
+            v-for="cat in TODO_CATEGORIES"
+            :key="cat.id"
+            :class="['pill', { active: filterCategory === cat.id }]"
+            @click="filterCategory = cat.id"
+          >{{ cat.icon }} {{ cat.name }}</button>
+        </div>
+      </div>
+      <div class="toolbar-right">
+        <div class="view-toggle">
+          <button :class="['view-btn', { active: viewMode === 'board' }]" @click="viewMode = 'board'" title="看板视图">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          </button>
+          <button :class="['view-btn', { active: viewMode === 'list' }]" @click="viewMode = 'list'" title="列表视图">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+        </div>
+        <button :class="['btn btn-sm', batchMode ? 'btn-primary' : '']" @click="toggleBatchMode">
+          {{ batchMode ? '退出批量' : '批量操作' }}
+        </button>
+        <button class="btn btn-primary btn-sm" @click="openAdd">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          新建
+        </button>
+      </div>
+    </div>
+
+    <template v-if="viewMode === 'board'">
+      <div v-if="filteredTodos.length === 0" class="card empty-card">
+        <div class="empty-state">
+          <span class="empty-emoji">📋</span>
+          <p class="empty-text">暂无待办事项</p>
+          <p class="empty-hint">点击「新建」或使用快速添加创建第一个待办</p>
+        </div>
+      </div>
+      <div v-else class="board">
+        <div class="board-col">
+          <div class="col-header">
+            <span class="col-dot" style="background:#f59e0b"></span>
+            <span class="col-title">待处理</span>
+            <span class="col-count">{{ pendingColumn.length }}</span>
+          </div>
+          <div v-if="pendingColumn.length === 0" class="col-empty">
+            <span class="empty-emoji-sm">🎉</span>
+            <span class="col-empty-text">暂无待处理</span>
+          </div>
+          <div
+            v-for="todo in pendingColumn"
+            :key="todo.id"
+            :class="['todo-card', { selected: batchMode && isSelected(todo.id), overdue: isOverdue(todo) }]"
+            @click="batchMode ? toggleSelect(todo.id) : openEdit(todo)"
           >
-            {{ f === 'all' ? '全部' : statusLabel(f) }}
-            <span class="filter-count">{{ filterCounts[f] }}</span>
-          </button>
+            <div class="card-top-row">
+              <input
+                v-if="batchMode"
+                type="checkbox"
+                :checked="isSelected(todo.id)"
+                @click.stop="toggleSelect(todo.id)"
+                class="batch-check"
+              />
+              <button class="status-dot" :class="todo.status" @click.stop="cycleStatus(todo)" :title="statusConfig[todo.status].label"></button>
+              <span class="card-title" :class="{ 'title-done': todo.status === 'completed' }">{{ todo.title }}</span>
+              <button class="card-delete" @click.stop="removeTodo(todo.id)" title="删除">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+            <div class="card-meta">
+              <span class="meta-tag pri-tag" :style="{ color: priorityConfig[todo.priority].color, background: priorityConfig[todo.priority].bg }">
+                <span class="tag-dot" :style="{ background: priorityConfig[todo.priority].color }"></span>
+                {{ priorityConfig[todo.priority].label }}
+              </span>
+              <span class="meta-tag cat-tag" :style="{ color: getCategoryInfo(todo.category).color, background: getCategoryInfo(todo.category).color + '18' }">
+                {{ getCategoryInfo(todo.category).icon }} {{ getCategoryInfo(todo.category).name }}
+              </span>
+              <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag">📁 {{ getProjectName(todo.projectId) }}</span>
+              <span v-if="todo.dueDate" :class="['meta-tag due-tag', { 'due-overdue': isOverdue(todo) }]">
+                📅 {{ formatDueDate(todo.dueDate) }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="board-col">
+          <div class="col-header">
+            <span class="col-dot" style="background:#3b82f6"></span>
+            <span class="col-title">进行中</span>
+            <span class="col-count">{{ inProgressColumn.length }}</span>
+          </div>
+          <div v-if="inProgressColumn.length === 0" class="col-empty">
+            <span class="empty-emoji-sm">🚀</span>
+            <span class="col-empty-text">暂无进行中</span>
+          </div>
+          <div
+            v-for="todo in inProgressColumn"
+            :key="todo.id"
+            :class="['todo-card', { selected: batchMode && isSelected(todo.id), overdue: isOverdue(todo) }]"
+            @click="batchMode ? toggleSelect(todo.id) : openEdit(todo)"
+          >
+            <div class="card-top-row">
+              <input
+                v-if="batchMode"
+                type="checkbox"
+                :checked="isSelected(todo.id)"
+                @click.stop="toggleSelect(todo.id)"
+                class="batch-check"
+              />
+              <button class="status-dot" :class="todo.status" @click.stop="cycleStatus(todo)" :title="statusConfig[todo.status].label"></button>
+              <span class="card-title" :class="{ 'title-done': todo.status === 'completed' }">{{ todo.title }}</span>
+              <button class="card-delete" @click.stop="removeTodo(todo.id)" title="删除">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+            <div class="card-meta">
+              <span class="meta-tag pri-tag" :style="{ color: priorityConfig[todo.priority].color, background: priorityConfig[todo.priority].bg }">
+                <span class="tag-dot" :style="{ background: priorityConfig[todo.priority].color }"></span>
+                {{ priorityConfig[todo.priority].label }}
+              </span>
+              <span class="meta-tag cat-tag" :style="{ color: getCategoryInfo(todo.category).color, background: getCategoryInfo(todo.category).color + '18' }">
+                {{ getCategoryInfo(todo.category).icon }} {{ getCategoryInfo(todo.category).name }}
+              </span>
+              <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag">📁 {{ getProjectName(todo.projectId) }}</span>
+              <span v-if="todo.dueDate" :class="['meta-tag due-tag', { 'due-overdue': isOverdue(todo) }]">
+                📅 {{ formatDueDate(todo.dueDate) }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="board-col">
+          <div class="col-header">
+            <span class="col-dot" style="background:#10b981"></span>
+            <span class="col-title">已完成</span>
+            <span class="col-count">{{ completedColumn.length }}</span>
+          </div>
+          <div v-if="completedColumn.length === 0" class="col-empty">
+            <span class="empty-emoji-sm">✨</span>
+            <span class="col-empty-text">暂无已完成</span>
+          </div>
+          <div
+            v-for="todo in completedColumn"
+            :key="todo.id"
+            :class="['todo-card', { selected: batchMode && isSelected(todo.id) }]"
+            @click="batchMode ? toggleSelect(todo.id) : openEdit(todo)"
+          >
+            <div class="card-top-row">
+              <input
+                v-if="batchMode"
+                type="checkbox"
+                :checked="isSelected(todo.id)"
+                @click.stop="toggleSelect(todo.id)"
+                class="batch-check"
+              />
+              <button class="status-dot" :class="todo.status" @click.stop="cycleStatus(todo)" :title="statusConfig[todo.status].label"></button>
+              <span class="card-title" :class="{ 'title-done': todo.status === 'completed' }">{{ todo.title }}</span>
+              <button class="card-delete" @click.stop="removeTodo(todo.id)" title="删除">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+            <div class="card-meta">
+              <span class="meta-tag pri-tag" :style="{ color: priorityConfig[todo.priority].color, background: priorityConfig[todo.priority].bg }">
+                <span class="tag-dot" :style="{ background: priorityConfig[todo.priority].color }"></span>
+                {{ priorityConfig[todo.priority].label }}
+              </span>
+              <span class="meta-tag cat-tag" :style="{ color: getCategoryInfo(todo.category).color, background: getCategoryInfo(todo.category).color + '18' }">
+                {{ getCategoryInfo(todo.category).icon }} {{ getCategoryInfo(todo.category).name }}
+              </span>
+              <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag">📁 {{ getProjectName(todo.projectId) }}</span>
+              <span v-if="todo.dueDate" :class="['meta-tag due-tag', { 'due-overdue': isOverdue(todo) }]">
+                📅 {{ formatDueDate(todo.dueDate) }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
+    </template>
 
-      <div v-if="filteredTodos.length === 0" class="card-empty">暂无待办</div>
-
-      <div class="card-body">
-        <div
-          v-for="t in filteredTodos"
-          :key="t.id"
-          class="list-row"
-          :class="{ done: t.status === 'completed' }"
-          @click="openEdit(t)"
-        >
-          <button class="check-btn" :class="{ checked: t.status === 'completed' }" @click.stop="toggleStatus(t)">
-            <svg v-if="t.status === 'completed'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
-          </button>
-
-          <span :class="['todo-title', { struck: t.status === 'completed' }]">{{ t.title }}</span>
-
-          <span :class="['badge', t.priority === 'high' ? 'badge-rose' : t.priority === 'medium' ? 'badge-amber' : '']">
-            {{ t.priority === 'high' ? '紧急' : t.priority === 'medium' ? '中' : '低' }}
-          </span>
-
-          <span v-if="getProjectName(t.projectId)" class="todo-project">{{ getProjectName(t.projectId) }}</span>
-
-          <span v-if="t.dueDate" class="todo-date">{{ t.dueDate }}</span>
-
-          <span style="flex:1"></span>
-
-          <button class="btn-icon" @click.stop="remove(t.id)" title="删除">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+    <template v-else>
+      <div v-if="filteredTodos.length === 0" class="card empty-card">
+        <div class="empty-state">
+          <span class="empty-emoji">📋</span>
+          <p class="empty-text">暂无待办事项</p>
+          <p class="empty-hint">点击「新建」或使用快速添加创建第一个待办</p>
         </div>
       </div>
+      <template v-else>
+        <div v-for="group in [
+          { key: 'pending', label: '待处理', color: '#f59e0b', items: pendingColumn },
+          { key: 'in_progress', label: '进行中', color: '#3b82f6', items: inProgressColumn },
+          { key: 'completed', label: '已完成', color: '#10b981', items: completedColumn }
+        ].filter(g => g.items.length > 0)" :key="group.key" class="list-group card">
+          <div class="list-group-header">
+            <span class="col-dot" :style="{ background: group.color }"></span>
+            <span class="list-group-title">{{ group.label }}</span>
+            <span class="col-count">{{ group.items.length }}</span>
+          </div>
+          <div
+            v-for="todo in group.items"
+            :key="todo.id"
+            :class="['list-row-item', { selected: batchMode && isSelected(todo.id), overdue: isOverdue(todo) }]"
+            @click="batchMode ? toggleSelect(todo.id) : openEdit(todo)"
+          >
+            <input
+              v-if="batchMode"
+              type="checkbox"
+              :checked="isSelected(todo.id)"
+              @click.stop="toggleSelect(todo.id)"
+              class="batch-check"
+            />
+            <button class="status-dot" :class="todo.status" @click.stop="cycleStatus(todo)" :title="statusConfig[todo.status].label"></button>
+            <span class="list-title" :class="{ 'title-done': todo.status === 'completed' }">{{ todo.title }}</span>
+            <div class="list-meta">
+              <span class="meta-tag pri-tag" :style="{ color: priorityConfig[todo.priority].color, background: priorityConfig[todo.priority].bg }">
+                <span class="tag-dot" :style="{ background: priorityConfig[todo.priority].color }"></span>
+                {{ priorityConfig[todo.priority].label }}
+              </span>
+              <span class="meta-tag cat-tag" :style="{ color: getCategoryInfo(todo.category).color, background: getCategoryInfo(todo.category).color + '18' }">
+                {{ getCategoryInfo(todo.category).icon }} {{ getCategoryInfo(todo.category).name }}
+              </span>
+              <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag">📁 {{ getProjectName(todo.projectId) }}</span>
+              <span v-if="todo.dueDate" :class="['meta-tag due-tag', { 'due-overdue': isOverdue(todo) }]">
+                📅 {{ formatDueDate(todo.dueDate) }}
+              </span>
+            </div>
+            <button class="card-delete" @click.stop="removeTodo(todo.id)" title="删除">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+      </template>
+    </template>
+
+    <div v-if="batchMode && selectedIds.size > 0" class="batch-bar">
+      <span class="batch-info">已选 {{ selectedIds.size }} 项</span>
+      <button class="btn btn-sm btn-batch-ok" @click="batchComplete">批量完成</button>
+      <button class="btn btn-sm btn-batch-del" @click="batchDelete">批量删除</button>
+      <button class="btn btn-sm" @click="cancelBatch">取消</button>
     </div>
 
     <div v-if="showModal" class="modal-mask" @click.self="showModal = false">
       <div class="modal">
         <div class="modal-header">
           <h3>{{ editingTodo ? '编辑待办' : '新建待办' }}</h3>
-          <button class="btn-icon" @click="showModal = false">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+          <button class="btn-icon" @click="showModal = false" style="font-size:18px">&times;</button>
         </div>
         <div class="modal-body">
-          <div class="field">
-            <label>标题 <span class="req">*</span></label>
-            <input v-model="formTitle" placeholder="待办标题" class="input" />
+          <div class="form-field">
+            <label>标题 <span class="required">*</span></label>
+            <input v-model="formTitle" placeholder="请输入待办标题" class="input" />
           </div>
-          <div class="field">
+          <div class="form-field">
             <label>描述</label>
-            <textarea v-model="formDesc" placeholder="详细描述" class="input" rows="3"></textarea>
+            <textarea v-model="formDesc" placeholder="请输入描述（可选）" class="input" rows="3"></textarea>
           </div>
-          <div class="field-row">
-            <div class="field">
-              <label>优先级</label>
-              <select v-model="formPriority" class="input">
-                <option v-for="p in priorityOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
-              </select>
+          <div class="form-field">
+            <label>优先级</label>
+            <div class="priority-cards">
+              <button
+                v-for="p in (['high', 'medium', 'low'] as const)"
+                :key="p"
+                :class="['pri-card', { active: formPriority === p }]"
+                :style="formPriority === p ? { borderColor: priorityConfig[p].color, background: priorityConfig[p].bg } : {}"
+                @click="formPriority = p"
+              >
+                <span class="pri-dot" :style="{ background: priorityConfig[p].color }"></span>
+                <span class="pri-label">{{ priorityConfig[p].label }}</span>
+              </button>
             </div>
-            <div class="field">
+          </div>
+          <div class="form-field">
+            <label>分类</label>
+            <div class="cat-grid">
+              <button
+                v-for="cat in TODO_CATEGORIES"
+                :key="cat.id"
+                :class="['cat-card', { active: formCategory === cat.id }]"
+                :style="formCategory === cat.id ? { borderColor: cat.color, background: cat.color + '12' } : {}"
+                @click="formCategory = cat.id"
+              >
+                <span class="cat-icon">{{ cat.icon }}</span>
+                <span class="cat-name">{{ cat.name }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
               <label>截止日期</label>
               <input v-model="formDueDate" type="date" class="input" />
             </div>
+            <div class="form-field">
+              <label>关联项目</label>
+              <select v-model="formProjectId" class="input">
+                <option :value="null">不关联</option>
+                <option v-for="p in projectsStore.projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+              </select>
+            </div>
           </div>
-          <div class="field">
-            <label>关联项目</label>
-            <select v-model="formProjectId" class="input">
-              <option :value="null">不关联</option>
-              <option v-for="p in projectsStore.projects" :key="p.id" :value="p.id">{{ p.name }}</option>
-            </select>
+          <div class="form-field">
+            <label>状态</label>
+            <div class="status-segment">
+              <button
+                v-for="s in (['pending', 'in_progress', 'completed'] as const)"
+                :key="s"
+                :class="['seg-btn', { active: formStatus === s }]"
+                :style="formStatus === s ? { background: statusConfig[s].color, color: '#fff', borderColor: statusConfig[s].color } : {}"
+                @click="formStatus = s"
+              >{{ statusConfig[s].label }}</button>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
           <button class="btn" @click="showModal = false">取消</button>
-          <button class="btn btn-primary" @click="save">保存</button>
+          <button class="btn btn-primary" @click="saveTodo" :disabled="!formTitle.trim()">保存</button>
         </div>
       </div>
-  </div>
+    </div>
 
-  <ConfirmModal
-    :visible="confirmVisible"
-    :title="confirmTitle"
-    :message="confirmMessage"
-    :danger="confirmDanger"
-    @confirm="onConfirmOk"
-    @cancel="onConfirmCancel"
-  />
-</div>
+    <ConfirmModal
+      :visible="confirmVisible"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      :danger="confirmDanger"
+      @confirm="onConfirmOk"
+      @cancel="onConfirmCancel"
+    />
+  </div>
 </template>
 
 <style scoped>
-.filters {
+.stats-bar {
   display: flex;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.stat-item {
+  flex: 1;
+  min-width: 90px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  text-align: center;
+}
+.stat-rate {
+  min-width: 160px;
+}
+.rate-info {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
   gap: 4px;
+  margin-bottom: 8px;
 }
-.filter-count {
-  font-size: 10px;
-  margin-left: 2px;
-  padding: 0 5px;
-  border-radius: var(--radius-full);
-  background: rgba(255,255,255,0.2);
-}
-.btn:not(.btn-primary) .filter-count {
+.rate-bar {
+  height: 6px;
   background: var(--border-light);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.rate-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+.stat-val {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1;
+}
+.stat-val-rose {
+  color: var(--rose);
+}
+.stat-lbl {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
 }
 
-.check-btn {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  border: 1.5px solid var(--border);
-  background: none;
-  cursor: pointer;
+.quick-add {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 12px;
+  padding: 14px 20px;
+  margin-bottom: 16px;
+}
+.quick-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  font-family: var(--font);
+  color: var(--text);
+  background: transparent;
+  padding: 6px 0;
+}
+.quick-input::placeholder {
+  color: var(--text-placeholder);
+}
+.quick-select {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg-card);
+  outline: none;
+  cursor: pointer;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  margin-bottom: 18px;
+  gap: 14px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.toolbar-left {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.search-input {
+  width: 220px;
+  padding: 7px 14px;
+  font-size: 13px;
+}
+.pill-group {
+  display: flex;
+  gap: 2px;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.12s;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.pill:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.pill.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.pill.active .pill-dot {
+  background: #fff !important;
+}
+.pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
   flex-shrink: 0;
-  color: white;
+}
+.toolbar-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.view-btn {
+  padding: 5px 8px;
+  background: var(--bg-card);
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  transition: all 0.12s;
+}
+.view-btn:hover {
+  color: var(--primary);
+}
+.view-btn.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+.board-col.col-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.col-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.col-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.col-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.col-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg);
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+}
+.col-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 24px 12px;
+  background: var(--bg-card);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+.col-empty-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.empty-emoji-sm {
+  font-size: 20px;
+}
+
+.todo-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  cursor: pointer;
   transition: all 0.15s;
 }
-.check-btn:hover { border-color: var(--primary); }
-.check-btn.checked { background: var(--primary); border-color: var(--primary); }
+.todo-card:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--primary);
+}
+.todo-card:hover .card-delete {
+  opacity: 1;
+}
+.todo-card.overdue {
+  border-color: #fecaca;
+}
+.todo-card.selected {
+  border-color: var(--primary);
+  background: var(--primary-50, #f0fdfa);
+}
 
-.todo-title {
-  font-size: 13px;
+.card-top-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.status-dot.pending {
+  border-color: #f59e0b;
+}
+.status-dot.in_progress {
+  border-color: #3b82f6;
+  background: #3b82f6;
+}
+.status-dot.completed {
+  border-color: #10b981;
+  background: #10b981;
+}
+.status-dot:hover {
+  transform: scale(1.2);
+}
+.card-title {
+  flex: 1;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text);
-  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
-.todo-title.struck {
+.title-done {
   text-decoration: line-through;
   color: var(--text-muted);
 }
-
-.todo-project {
-  font-size: 11px;
-  color: var(--primary);
-  background: var(--primary-50);
-  padding: 1px 6px;
-  border-radius: var(--radius-full);
+.card-delete {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  display: flex;
+  transition: all 0.12s;
+  flex-shrink: 0;
 }
-.todo-date {
-  font-size: 11.5px;
+.card-delete:hover {
+  color: var(--rose);
+  background: var(--rose-bg);
+}
+
+.card-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.meta-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.tag-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.proj-tag {
+  background: var(--bg);
+  color: var(--text-muted);
+}
+.due-tag {
+  background: var(--bg);
+  color: var(--text-muted);
+}
+.due-overdue {
+  color: var(--rose);
+  background: var(--rose-bg);
+  font-weight: 600;
+}
+
+.list-group {
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.list-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+.list-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.list-row-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.list-row-item:last-child {
+  border-bottom: none;
+}
+.list-row-item:hover {
+  background: var(--bg-hover);
+}
+.list-row-item:hover .card-delete {
+  opacity: 1;
+}
+.list-row-item.selected {
+  background: var(--primary-50, #f0fdfa);
+}
+.list-row-item.overdue {
+  background: #fff5f5;
+}
+.list-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.list-meta {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.batch-check {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.batch-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  z-index: 100;
+  animation: slideUp 0.2s ease;
+}
+.batch-info {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin-right: 4px;
+}
+.btn-batch-ok {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+.btn-batch-ok:hover {
+  background: #059669;
+  border-color: #059669;
+}
+.btn-batch-del {
+  background: var(--rose);
+  color: #fff;
+  border-color: var(--rose);
+}
+.btn-batch-del:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.empty-card {
+  margin-bottom: 16px;
+}
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 18px;
+}
+.empty-emoji {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+.empty-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.empty-hint {
+  font-size: 13px;
   color: var(--text-muted);
 }
 
-.done { opacity: 0.55; }
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.25);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.15s;
+}
+.modal {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  width: 520px;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-md);
+  animation: slideUp 0.2s ease;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+.modal-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.modal-body {
+  padding: 20px;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-light);
+}
+.form-field {
+  margin-bottom: 14px;
+}
+.form-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+.required {
+  color: var(--rose);
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
 
-.field { margin-bottom: 14px; }
-.field label { display: block; font-size: 12.5px; font-weight: 500; color: var(--text-secondary); margin-bottom: 5px; }
-.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.req { color: var(--rose); }
+.priority-cards {
+  display: flex;
+  gap: 8px;
+}
+.pri-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+}
+.pri-card:hover {
+  border-color: var(--primary);
+}
+.pri-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.pri-label {
+  font-weight: 500;
+}
+
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.cat-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text);
+}
+.cat-card:hover {
+  border-color: var(--primary);
+}
+.cat-icon {
+  font-size: 14px;
+}
+.cat-name {
+  font-weight: 500;
+}
+
+.status-segment {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.seg-btn {
+  flex: 1;
+  padding: 7px 12px;
+  border: none;
+  background: var(--bg-card);
+  font-size: 13px;
+  font-family: var(--font);
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  border-right: 1px solid var(--border);
+}
+.seg-btn:last-child {
+  border-right: none;
+}
+.seg-btn:hover {
+  background: var(--bg-hover);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 900px) {
+  .stats-bar {
+    flex-wrap: wrap;
+  }
+  .stat-item {
+    min-width: 60px;
+  }
+  .stat-rate {
+    min-width: 120px;
+  }
+  .board {
+    grid-template-columns: 1fr;
+  }
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .toolbar-left {
+    flex-direction: column;
+  }
+  .toolbar-right {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .search-input {
+    width: 100%;
+  }
+  .pill-group {
+    flex-wrap: wrap;
+  }
+  .cat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .list-meta {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .stats-bar {
+    gap: 8px;
+  }
+  .stat-item {
+    padding: 10px 8px;
+  }
+  .stat-val {
+    font-size: 18px;
+  }
+  .quick-add {
+    flex-wrap: wrap;
+  }
+  .quick-select {
+    flex: 1;
+  }
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  .priority-cards {
+    flex-direction: column;
+  }
+  .cat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .batch-bar {
+    left: 16px;
+    right: 16px;
+    transform: none;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
 </style>
