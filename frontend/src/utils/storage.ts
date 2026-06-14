@@ -1,4 +1,4 @@
-import type { Project, Todo, WorkLog, AiMessage, AiProvider, ProjectPhase, Client, Report, PlanTask } from '../types'
+import type { Project, Todo, WorkLog, AiMessage, AiProvider, ProjectPhase, Client, Report, PlanTask, VisitRecord } from '../types'
 import { DEFAULT_PHASES } from '../types'
 
 const STORAGE_KEYS = {
@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   aiProvider: 'worklog_aiProvider',
   projectPhases: 'worklog_projectPhases',
   clients: 'worklog_clients',
+  visitRecords: 'worklog_visitRecords',
   reports: 'worklog_reports',
   planTasks: 'worklog_planTasks'
 }
@@ -66,6 +67,13 @@ export const storage = {
   },
   saveClients(clients: Client[]) {
     localStorage.setItem(STORAGE_KEYS.clients, JSON.stringify(clients))
+  },
+  getVisitRecords(): VisitRecord[] {
+    const data = localStorage.getItem(STORAGE_KEYS.visitRecords)
+    return data ? JSON.parse(data) : []
+  },
+  saveVisitRecords(records: VisitRecord[]) {
+    localStorage.setItem(STORAGE_KEYS.visitRecords, JSON.stringify(records))
   },
   getReports(): Report[] {
     const data = localStorage.getItem(STORAGE_KEYS.reports)

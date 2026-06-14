@@ -1,4 +1,4 @@
-﻿import type { Client, Project, WorkLog, Todo, PhaseRecord, PlanTask } from '../types'
+import type { Client, Project, WorkLog, Todo, PhaseRecord, PlanTask } from '../types'
 import { storage } from './storage'
 
 function id(prefix: string, n: number) {
@@ -35,38 +35,69 @@ export function seedAllData() {
   const clients: Client[] = [
     {
       id: id('client', 1), name: '市大数据局', type: 'government',
-      contact: '王志远', phone: '138****5521', department: '数据资源管理处',
-      notes: '智慧城市项目牵头单位，今年预算充足，重点客户',
+      contacts: [
+        { id: 'ct_1_1', name: '王志远', title: '处长', department: '数据资源管理处', phone: '138****5521', email: 'wangzy@data.gov.cn', role: 'leader', responsibility: '智慧城市项目总牵头，预算审批', isPrimary: true, notes: '' },
+        { id: 'ct_1_2', name: '孙晓明', title: '副处长', department: '数据资源管理处', phone: '139****3321', email: 'sunxm@data.gov.cn', role: 'executor', responsibility: '技术对接、需求确认', isPrimary: false, notes: '技术出身，沟通顺畅' },
+        { id: 'ct_1_3', name: '周婷', title: '科员', department: '数据安全科', phone: '136****7712', email: 'zhout@data.gov.cn', role: 'executor', responsibility: '数据安全合规审查', isPrimary: false, notes: '数据安全相关事项找她' }
+      ],
+      region: '本市', industry: '政务数据',
+      importance: 'A', followUpStatus: 'active', lastContactDate: daysAgo(3), nextFollowUpDate: daysAgo(-7),
+      source: '政府招标', notes: '智慧城市项目牵头单位，今年预算充足，重点客户',
       createdAt: iso(daysAgo(90)), updatedAt: iso(daysAgo(3))
     },
     {
       id: id('client', 2), name: '市教育局', type: 'government',
-      contact: '李明辉', phone: '139****8832', department: '教育信息化办公室',
-      notes: '教育信息化2.0项目，需关注省厅政策动向',
+      contacts: [
+        { id: 'ct_2_1', name: '李明辉', title: '主任', department: '教育信息化办公室', phone: '139****8832', email: 'limh@edu.gov.cn', role: 'leader', responsibility: '教育信息化2.0项目负责人', isPrimary: true, notes: '' },
+        { id: 'ct_2_2', name: '吴思远', title: '副主任', department: '教育信息化办公室', phone: '137****5543', email: 'wusy@edu.gov.cn', role: 'executor', responsibility: '项目执行、学校对接', isPrimary: false, notes: '负责一线学校的落地推进' }
+      ],
+      region: '本市', industry: '教育信息化',
+      importance: 'A', followUpStatus: 'active', lastContactDate: daysAgo(5), nextFollowUpDate: daysAgo(-3),
+      source: '老客户转介', notes: '教育信息化2.0项目，需关注省厅政策动向',
       createdAt: iso(daysAgo(75)), updatedAt: iso(daysAgo(5))
     },
     {
       id: id('client', 3), name: '区智慧城市运营中心', type: 'government',
-      contact: '张晓峰', phone: '136****6617', department: '运营管理部',
-      notes: '负责区级智慧城市平台运营，对接数据归集需求',
+      contacts: [
+        { id: 'ct_3_1', name: '张晓峰', title: '部长', department: '运营管理部', phone: '136****6617', email: 'zhangxf@smartcity.gov.cn', role: 'leader', responsibility: '平台运营管理', isPrimary: true, notes: '' },
+        { id: 'ct_3_2', name: '林海', title: '技术主管', department: '技术保障部', phone: '135****9901', email: 'linh@smartcity.gov.cn', role: 'executor', responsibility: '平台技术对接、数据归集', isPrimary: false, notes: '数据接口对接找他' }
+      ],
+      region: '本区', industry: '智慧城市',
+      importance: 'B', followUpStatus: 'pending', lastContactDate: daysAgo(15), nextFollowUpDate: daysAgo(-2),
+      source: '项目合作', notes: '负责区级智慧城市平台运营，对接数据归集需求',
       createdAt: iso(daysAgo(60)), updatedAt: iso(daysAgo(7))
     },
     {
       id: id('client', 4), name: '省交通投资集团', type: 'enterprise',
-      contact: '陈国强', phone: '137****9943', department: '信息化管理部',
-      notes: '数字化转型咨询，预算较大但决策链长',
+      contacts: [
+        { id: 'ct_4_1', name: '陈国强', title: '部长', department: '信息化管理部', phone: '137****9943', email: 'chengq@jtjt.com', role: 'leader', responsibility: '数字化转型规划', isPrimary: true, notes: '' },
+        { id: 'ct_4_2', name: '黄伟', title: '高级经理', department: '信息化管理部', phone: '138****2201', email: 'huangw@jtjt.com', role: 'executor', responsibility: '项目采购、合同对接', isPrimary: false, notes: '采购流程对接' },
+        { id: 'ct_4_3', name: '杨蕾', title: '副总', department: '战略发展部', phone: '139****6601', email: 'yanglei@jtjt.com', role: 'leader', responsibility: '战略规划审批', isPrimary: false, notes: '决策层，需要高层对高层拜访' }
+      ],
+      region: '本省', industry: '交通基建',
+      importance: 'A', followUpStatus: 'active', lastContactDate: daysAgo(2), nextFollowUpDate: daysAgo(-5),
+      source: '行业会议', notes: '数字化转型咨询，预算较大但决策链长',
       createdAt: iso(daysAgo(45)), updatedAt: iso(daysAgo(2))
     },
     {
       id: id('client', 5), name: '市卫生健康委', type: 'government',
-      contact: '刘雅琴', phone: '135****2206', department: '规划发展与信息化处',
-      notes: '智慧医疗平台已交付，运维阶段，后续有区域医疗信息平台需求',
+      contacts: [
+        { id: 'ct_5_1', name: '刘雅琴', title: '处长', department: '规划发展与信息化处', phone: '135****2206', email: 'liuyq@health.gov.cn', role: 'leader', responsibility: '卫生健康信息化规划', isPrimary: true, notes: '' }
+      ],
+      region: '本市', industry: '医疗卫生',
+      importance: 'B', followUpStatus: 'pending', lastContactDate: daysAgo(20), nextFollowUpDate: daysAgo(5),
+      source: '老客户', notes: '智慧医疗平台已交付，运维阶段，后续有区域医疗信息平台需求',
       createdAt: iso(daysAgo(120)), updatedAt: iso(daysAgo(10))
     },
     {
       id: id('client', 6), name: '市应急管理局', type: 'government',
-      contact: '赵鹏飞', phone: '133****7748', department: '应急指挥中心',
-      notes: '应急指挥调度系统招标在即，竞品压力大',
+      contacts: [
+        { id: 'ct_6_1', name: '赵鹏飞', title: '主任', department: '应急指挥中心', phone: '133****7748', email: 'zhaopf@emergency.gov.cn', role: 'leader', responsibility: '应急指挥系统建设', isPrimary: true, notes: '' },
+        { id: 'ct_6_2', name: '马强', title: '科长', department: '科技信息化科', phone: '134****1102', email: 'maq@emergency.gov.cn', role: 'executor', responsibility: '技术选型、方案评审', isPrimary: false, notes: '技术评审关键人' }
+      ],
+      region: '本市', industry: '应急管理',
+      importance: 'A', followUpStatus: 'active', lastContactDate: daysAgo(1), nextFollowUpDate: daysAgo(-1),
+      source: '政府招标', notes: '应急指挥调度系统招标在即，竞品压力大',
       createdAt: iso(daysAgo(40)), updatedAt: iso(daysAgo(1))
     }
   ]
@@ -331,7 +362,17 @@ export function seedAllData() {
     { id: id('plan', 22), projectId: id('proj', 6), name: '验收与运维交接', startDate: daysAgo(-15), endDate: daysAgo(-25), progress: 0, parentId: null, duration: 0, includeHolidays: false, actualStartDate: null, actualEndDate: null, status: 'pending', order: 3, createdAt: iso(daysAgo(10)), updatedAt: iso(daysAgo(10)) }
   ]
 
+  const visitRecords = [
+    { id: 'vr_001', clientId: id('client', 1), contactPersonId: 'ct_1_1', date: daysAgo(3), contact: '王志远', content: '讨论智慧城市平台二期数据归集范围，新增5个委办局接入', result: '明确二期需求范围，约定下周提交技术方案', nextPlan: '下周三前提交数据对接技术方案', createdAt: iso(daysAgo(3)) },
+    { id: 'vr_002', clientId: id('client', 1), contactPersonId: 'ct_1_1', date: daysAgo(15), contact: '王志远', content: '汇报一期项目进展，演示数据治理引擎核心功能', result: '领导满意，同意追加预算用于可视化大屏', nextPlan: '编制二期预算清单', createdAt: iso(daysAgo(15)) },
+    { id: 'vr_003', clientId: id('client', 2), contactPersonId: 'ct_2_1', date: daysAgo(5), contact: '李明辉', content: '教育信息化2.0项目需求调研，走访3所试点学校', result: '收集到一线教师核心需求12项', nextPlan: '整理需求文档，安排产品演示', createdAt: iso(daysAgo(5)) },
+    { id: 'vr_004', clientId: id('client', 4), contactPersonId: 'ct_4_1', date: daysAgo(2), contact: '陈国强', content: '数字化转型咨询项目初次方案汇报', result: '对方认可方案思路，需走内部审批流程', nextPlan: '等待对方内部立项审批，预计2周', createdAt: iso(daysAgo(2)) },
+    { id: 'vr_005', clientId: id('client', 6), contactPersonId: 'ct_6_1', date: daysAgo(1), contact: '赵鹏飞', content: '应急指挥调度系统招标文件技术参数沟通', result: '了解到关键评分指标，竞品已提前介入', nextPlan: '紧急优化技术方案，突出差异化优势', createdAt: iso(daysAgo(1)) },
+    { id: 'vr_006', clientId: id('client', 6), contactPersonId: 'ct_6_1', date: daysAgo(10), contact: '赵鹏飞', content: '初次拜访，介绍公司应急领域解决方案', result: '对方表示感兴趣，邀请参加招标前沟通会', nextPlan: '准备招标前技术交流PPT', createdAt: iso(daysAgo(10)) }
+  ]
+
   storage.saveClients(clients)
+  storage.saveVisitRecords(visitRecords)
   storage.saveProjects(projects)
   storage.saveWorkLogs(workLogs)
   storage.saveTodos(todos)

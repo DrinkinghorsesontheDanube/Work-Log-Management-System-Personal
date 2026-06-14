@@ -113,13 +113,43 @@ export interface WorkLog {
   updatedAt: string
 }
 
+export interface ContactPerson {
+  id: string
+  name: string
+  title: string
+  department: string
+  phone: string
+  email: string
+  role: 'leader' | 'executor'
+  responsibility: string
+  isPrimary: boolean
+  notes: string
+}
+
+export interface VisitRecord {
+  id: string
+  clientId: string
+  contactPersonId: string
+  date: string
+  contact: string
+  content: string
+  result: string
+  nextPlan: string
+  createdAt: string
+}
+
 export interface Client {
   id: string
   name: string
   type: 'government' | 'enterprise' | 'institution'
-  contact: string
-  phone: string
-  department: string
+  contacts: ContactPerson[]
+  region: string
+  industry: string
+  importance: 'A' | 'B' | 'C'
+  followUpStatus: 'active' | 'pending' | 'lost'
+  lastContactDate: string | null
+  nextFollowUpDate: string | null
+  source: string
   notes: string
   createdAt: string
   updatedAt: string
