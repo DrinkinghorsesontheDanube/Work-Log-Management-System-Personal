@@ -4,6 +4,7 @@ import type { useProjectsStore } from '../stores/projects'
 import type { useTodosStore } from '../stores/todos'
 import type { useWorkLogsStore } from '../stores/workLogs'
 import type { useClientsStore } from '../stores/clients'
+import { chatWithAI } from './aiService'
 
 type ProjectsStore = ReturnType<typeof useProjectsStore>
 type TodosStore = ReturnType<typeof useTodosStore>
@@ -496,5 +497,172 @@ export function confirmEntry(
   }
 
   result.summary = pending.summary.replace('识别到', '已记录')
+  return result
+}
+
+const VALID_CATEGORIES = WORK_CATEGORIES.map(c => `${c.id}(${c.name})`).join(', ')
+
+export async function analyzeEntryWithAI(
+  rawText: string,
+  stores: {
+    projectsStore: ProjectsStore
+    clientsStore?: ClientsStore
+  }
+): Promise<PendingEntry> {
+  const text = rawText.trim()
+  const empty: PendingEntry = { rawText: '', projects: [], todos: [], logs: [], client: null, categoryId: 'other', analyzedItems: [], summary: '' }
+  if (!text) return empty
+
+  const { projectsStore, clientsStore } = stores
+  const existingProjectNames = projectsStore.projects.map(p => p.name).join('、')
+  const existingClientNames = clientsStore ? clientsStore.clients.map(c => c.name).join('、') : ''
+
+  const today = new Date().toISOString().split('T')[0]
+  const categoryList = WORK_CATEGORIES.map(c => `  - ${c.id}: ${c.name}`).join('\n')
+
+  const prompt = `你是一个工作日志智能分析助手。请分析以下用户输入的工作内容，提取结构化信息。
+
+## 今日日期
+${today}
+
+## 已有项目
+${existingProjectNames || '（暂无）'}
+
+## 已有客户
+${existingClientNames || '（暂无）'}
+
+## 工作分类（categoryId 必须是以下之一）
+${categoryList}
+
+## 用户输入
+${text}
+
+## 要求
+请返回严格的 JSON 格式（不要包含 markdown 代码块标记），结构如下：
+{
+  "logs": [{ "content": "日志内容", "categoryId": "分类ID", "projectName": "关联项目名(可选)", "clientName": "关联客户名(可选)", "date": "日期YYYY-MM-DD(默认今天)" }],
+  "todos": [{ "title": "待办标题", "description": "详细描述", "priority": "high/medium/low", "dueDate": "YYYY-MM-DD", "projectName": "关联项目名(可选)" }],
+  "projects": [{ "name": "项目名", "description": "项目描述", "isNew": true/false }],
+  "client": { "name": "客户名", "isNew": true/false } 或 null,
+  "summary": "一句话总结识别结果"
+}
+
+规则：
+1. 日志内容要保持用户原意，可适当润色但不要改变含义
+2. 如果用户提到的项目名与已有项目匹配，isNew 设为 false
+3. 如果用户提到的客户名与已有客户匹配，isNew 设为 false
+4. 分类要准确，参考工作分类列表
+5. 如果没有待办相关内容，todos 数组为空
+6. 如果没有项目相关内容，projects 数组为空
+7. 如果内容中有日期信息（如"明天"、"下周"、具体日期），提取到对应字段`
+
+  const response = await chatWithAI([{ role: 'user', content: prompt }])
+
+  let parsed: any
+  try {
+    const jsonStr = response.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim()
+    parsed = JSON.parse(jsonStr)
+  } catch {
+    return analyzeEntry(rawText, stores)
+  }
+
+  const result: PendingEntry = {
+    rawText: text,
+    projects: [],
+    todos: [],
+    logs: [],
+    client: null,
+    categoryId: 'other',
+    analyzedItems: [],
+    summary: ''
+  }
+
+  if (parsed.client && parsed.client.name) {
+    const existingClient = clientsStore ? clientsStore.findClientByName(parsed.client.name) : undefined
+    result.client = { name: parsed.client.name, isNew: !existingClient }
+    result.analyzedItems.push({
+      type: 'client',
+      title: parsed.client.name,
+      detail: existingClient ? '已关联现有客户' : '将自动创建新客户',
+      isNew: !existingClient
+    })
+  }
+
+  for (const p of (parsed.projects || [])) {
+    if (!p.name) continue
+    const existing = projectsStore.findProjectByName(p.name)
+    result.projects.push({
+      name: p.name,
+      description: p.description || text.slice(0, 120),
+      isNew: !existing,
+      existingId: existing?.id
+    })
+    result.analyzedItems.push({
+      type: 'project',
+      title: p.name,
+      detail: existing ? '已关联到现有项目' : '将自动创建新项目',
+      isNew: !existing
+    })
+  }
+
+  const projectName = result.projects.length ? result.projects[0].name : ''
+  for (const l of (parsed.logs || [])) {
+    const catId = (WORK_CATEGORIES.some(c => c.id === l.categoryId) ? l.categoryId : 'other') as WorkCategoryId
+    result.logs.push({
+      date: l.date || today,
+      content: l.content || text,
+      categoryId: catId,
+      projectName: l.projectName || projectName || undefined,
+      clientName: l.clientName || parsed.client?.name || undefined
+    })
+    result.analyzedItems.push({
+      type: 'log',
+      title: (l.content || text).slice(0, 40) + ((l.content || text).length > 40 ? '…' : ''),
+      detail: `记录于 ${l.date || today}`,
+      projectName: l.projectName || projectName || undefined,
+      clientName: l.clientName || parsed.client?.name || undefined,
+      category: WORK_CATEGORIES.find(c => c.id === catId)?.name
+    })
+    if (!result.categoryId || result.categoryId === 'other') result.categoryId = catId
+  }
+
+  for (const t of (parsed.todos || [])) {
+    if (!t.title) continue
+    const priority = ['high', 'medium', 'low'].includes(t.priority) ? t.priority : 'medium'
+    result.todos.push({
+      title: t.title,
+      description: t.description || t.title,
+      priority,
+      dueDate: t.dueDate || today,
+      projectName: t.projectName || projectName || undefined
+    })
+    result.analyzedItems.push({
+      type: 'todo',
+      title: t.title,
+      detail: t.description || t.title,
+      priority,
+      dueDate: t.dueDate || today,
+      projectName: t.projectName || projectName || undefined
+    })
+  }
+
+  result.summary = parsed.summary || ''
+
+  if (!result.logs.length && text.length > 5) {
+    result.logs.push({
+      date: today,
+      content: text,
+      categoryId: result.categoryId || 'other',
+      projectName: projectName || undefined,
+      clientName: parsed.client?.name || undefined
+    })
+    result.analyzedItems.push({
+      type: 'log',
+      title: text.slice(0, 40) + (text.length > 40 ? '…' : ''),
+      detail: `记录于 ${today}`,
+      category: WORK_CATEGORIES.find(c => c.id === result.categoryId)?.name
+    })
+  }
+
   return result
 }

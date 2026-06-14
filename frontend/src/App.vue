@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, provide } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NMessageProvider } from 'naive-ui'
+import AiConfigPrompt from './components/AiConfigPrompt.vue'
 import {
   HomeOutline,
   CalendarOutline,
@@ -15,6 +16,11 @@ const router = useRouter()
 const route = useRoute()
 const activeKey = ref(route.path)
 const sidebarOpen = ref(false)
+const aiPromptRef = ref<InstanceType<typeof AiConfigPrompt>>()
+
+provide('showAiConfigPrompt', () => {
+  aiPromptRef.value?.show()
+})
 
 watch(() => route.path, (path) => {
   sidebarOpen.value = false
@@ -86,6 +92,7 @@ function navigate(key: string) {
         <router-view />
       </main>
     </div>
+    <AiConfigPrompt ref="aiPromptRef" />
   </n-message-provider>
 </template>
 

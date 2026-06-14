@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, inject } from 'vue'
 import { useWorkLogsStore } from '../stores/workLogs'
 import { useProjectsStore } from '../stores/projects'
 import { useClientsStore } from '../stores/clients'
@@ -10,6 +10,7 @@ import { chatWithAI, isAiConfigured } from '../services/aiService'
 import { marked } from 'marked'
 
 const workLogsStore = useWorkLogsStore()
+const showAiConfigPrompt = inject<() => void>('showAiConfigPrompt', () => {})
 const projectsStore = useProjectsStore()
 const clientsStore = useClientsStore()
 
@@ -288,7 +289,7 @@ async function generateReport() {
       aiLoading.value = false
     }
   } else {
-    reportContent.value = buildLocalReport()
+    showAiConfigPrompt()
   }
 }
 

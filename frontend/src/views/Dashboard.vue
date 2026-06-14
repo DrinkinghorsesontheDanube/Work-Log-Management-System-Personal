@@ -1,19 +1,21 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectsStore } from '../stores/projects'
 import { useTodosStore } from '../stores/todos'
 import { useWorkLogsStore } from '../stores/workLogs'
 import { useClientsStore } from '../stores/clients'
-import { analyzeEntry, confirmEntry } from '../services/smartEntry'
+import { analyzeEntry, confirmEntry, analyzeEntryWithAI } from '../services/smartEntry'
 import type { PendingEntry } from '../services/smartEntry'
 import { WORK_CATEGORIES } from '../types'
+import { isAiConfigured } from '../services/aiService'
 
 const router = useRouter()
 const projectsStore = useProjectsStore()
 const todosStore = useTodosStore()
 const workLogsStore = useWorkLogsStore()
 const clientsStore = useClientsStore()
+const showAiConfigPrompt = inject<() => void>('showAiConfigPrompt', () => {})
 
 const aiInput = ref('')
 const pending = ref<PendingEntry | null>(null)
@@ -61,12 +63,26 @@ function getProjectName(id: string | null) {
   return projectsStore.projects.find(p => p.id === id)?.name || ''
 }
 
-function handleAnalyze() {
+const aiAnalyzing = ref(false)
+
+async function handleAnalyze() {
   const text = aiInput.value.trim()
   if (!text) return
   confirmed.value = false
   statusMsg.value = ''
-  pending.value = analyzeEntry(text, { projectsStore, todosStore, clientsStore })
+
+  if (isAiConfigured()) {
+    aiAnalyzing.value = true
+    try {
+      pending.value = await analyzeEntryWithAI(text, { projectsStore, clientsStore })
+    } catch {
+      pending.value = analyzeEntry(text, { projectsStore, todosStore, clientsStore })
+    } finally {
+      aiAnalyzing.value = false
+    }
+  } else {
+    pending.value = analyzeEntry(text, { projectsStore, todosStore, clientsStore })
+  }
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -131,16 +147,27 @@ onMounted(() => {
       </div>
 
       <div class="card input-card">
-        <textarea
-          v-model="aiInput"
-          placeholder="记录今天的工作内容，系统会自动识别项目、客户、日志和待办...&#10;例如：今天去了市大数据局汇报智慧城市项目方案，明天跟进预算确认"
-          class="smart-input"
-          rows="2"
-          @keydown="handleKeydown"
-        ></textarea>
+        <div class="input-wrap">
+          <textarea
+            v-model="aiInput"
+            placeholder="记录今天的工作内容，系统会自动识别项目、客户、日志和待办...&#10;例如：今天去了市大数据局汇报智慧城市项目方案，明天跟进预算确认"
+            class="smart-input"
+            rows="2"
+            @keydown="handleKeydown"
+          ></textarea>
+          <button v-if="aiInput" class="clear-btn" @click="aiInput = ''; pending = null" title="清空">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
         <div class="input-actions">
-          <span class="input-hint">Enter 分析 · 系统自动识别</span>
-          <button class="btn btn-primary btn-sm" :disabled="!aiInput.trim()" @click="handleAnalyze">分析</button>
+          <span class="input-hint">
+            <template v-if="isAiConfigured()">Enter 分析 · AI 智能识别</template>
+            <template v-else>Enter 分析 · 本地识别 <a class="ai-link" @click.stop="showAiConfigPrompt()">开启 AI 增强</a></template>
+          </span>
+          <button class="btn btn-primary btn-sm" :disabled="!aiInput.trim() || aiAnalyzing" @click="handleAnalyze">
+            <span v-if="aiAnalyzing" class="btn-spinner"></span>
+            {{ aiAnalyzing ? 'AI 分析中…' : '分析' }}
+          </button>
         </div>
       </div>
 
@@ -330,8 +357,30 @@ onMounted(() => {
   padding: 14px 18px 8px; min-height: 28px;
 }
 .smart-input::placeholder { color: var(--text-placeholder); }
+.input-wrap { position: relative; }
+.input-wrap .smart-input { padding-right: 36px; }
+.clear-btn {
+  position: absolute; top: 10px; right: 10px;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 50%;
+  background: var(--border-light, #e2e8f0);
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer; transition: all 0.15s;
+  padding: 0;
+}
+.clear-btn:hover { background: var(--border, #cbd5e1); color: var(--text, #1e293b); }
 .input-actions { display: flex; justify-content: space-between; align-items: center; padding: 8px 18px 12px; }
 .input-hint { font-size: 12px; color: var(--text-muted); }
+.ai-link { color: var(--primary); cursor: pointer; text-decoration: underline; font-weight: 500; }
+.ai-link:hover { color: #4f46e5; }
+.btn-spinner {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+  margin-right: 4px; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .mid-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
 .row-date { font-size: 12px; font-weight: 500; color: var(--primary); flex-shrink: 0; min-width: 40px; }

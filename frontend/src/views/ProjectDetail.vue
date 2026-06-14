@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '../stores/projects'
 import { useTodosStore } from '../stores/todos'
@@ -14,6 +14,7 @@ import type { Project, PlanTask } from '../types'
 const route = useRoute()
 const router = useRouter()
 const projectsStore = useProjectsStore()
+const showAiConfigPrompt = inject<() => void>('showAiConfigPrompt', () => {})
 const todosStore = useTodosStore()
 const workLogsStore = useWorkLogsStore()
 const clientsStore = useClientsStore()
@@ -120,8 +121,27 @@ const autoProgress = computed(() => {
 function syncProjectProgress() {
   if (!project.value) return
   const p = autoProgress.value
+  const parents = parentTasks.value
+  const updates: Partial<Pick<Project, 'progress' | 'status'>> = {}
+
   if (p !== project.value.progress) {
-    projectsStore.updateProject(project.value.id, { progress: p })
+    updates.progress = p
+  }
+
+  if (parents.length > 0 && project.value.status !== 'paused' && project.value.status !== 'planning') {
+    const allDone = parents.every(t => t.status === 'completed')
+    const allPending = parents.every(t => t.status === 'pending')
+    if (allDone && project.value.status !== 'completed') {
+      updates.status = 'completed'
+    } else if (!allDone && project.value.status === 'completed') {
+      updates.status = 'in_progress'
+    } else if (allPending && project.value.status !== 'planning') {
+      updates.status = 'planning'
+    }
+  }
+
+  if (Object.keys(updates).length > 0) {
+    projectsStore.updateProject(project.value.id, updates)
     project.value = projectsStore.getProjectById(project.value.id) || null
   }
 }
@@ -440,7 +460,7 @@ function onConfirmOk() {
 function onConfirmCancel() { confirmVisible.value = false; pendingDeleteId.value = null }
 
 async function aiGeneratePlan() {
-  if (!project.value || !isAiConfigured()) { alert('请先在设置中配置 AI'); return }
+  if (!project.value || !isAiConfigured()) { showAiConfigPrompt(); return }
   aiGenerating.value = true
   try {
     const prompt = `请为以下信息化项目生成项目计划任务清单，要求：
@@ -966,6 +986,8 @@ onMounted(() => {
                 <option value="completed">已完成</option>
                 <option value="paused">已暂停</option>
               </select>
+              <span class="field-hint" v-if="editStatus === 'completed' && autoProgress < 100" style="color: #d97706;">⚠ 当前计划任务进度仅 {{ autoProgress }}%，设为已完成会与实际进度不一致</span>
+              <span class="field-hint" v-else>计划任务全部完成时会自动标记为已完成</span>
             </div>
             <div class="form-field">
               <label>开始日期</label>
@@ -1573,6 +1595,10 @@ onMounted(() => {
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 5px;
+}
+.field-hint {
+  display: block; font-size: 11px; color: var(--text-muted, #94a3b8);
+  margin-top: 4px; line-height: 1.4;
 }
 
 .ai-preview-body { max-height: 400px; overflow-y: auto; }
