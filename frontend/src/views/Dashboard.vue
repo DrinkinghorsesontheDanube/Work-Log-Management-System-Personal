@@ -50,15 +50,38 @@ const todayTodos = computed(() =>
   todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate === today)
 )
 const upcomingTodos = computed(() => {
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  const in3 = new Date()
-  in3.setDate(in3.getDate() + 3)
-  const tStr = tomorrow.toISOString().split('T')[0]
-  const eStr = in3.toISOString().split('T')[0]
+  const now = new Date()
+  const day = now.getDay() || 7
+  const mon = new Date(now); mon.setDate(now.getDate() - day + 1)
+  const sun = new Date(now); sun.setDate(now.getDate() - day + 7)
+  const mStr = mon.toISOString().split('T')[0]
+  const sStr = sun.toISOString().split('T')[0]
   return todosStore.todos.filter(t =>
-    t.status !== 'completed' && t.dueDate && t.dueDate > today && t.dueDate <= eStr
-  ).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''))
+    t.dueDate && t.dueDate >= mStr && t.dueDate <= sStr
+  ).sort((a, b) => {
+    if (a.status === 'completed' && b.status !== 'completed') return 1
+    if (a.status !== 'completed' && b.status === 'completed') return -1
+    return (a.dueDate || '').localeCompare(b.dueDate || '')
+  })
+})
+
+const nextWeekTodos = computed(() => {
+  const now = new Date()
+  const day = now.getDay() || 7
+  const nextMon = new Date(now); nextMon.setDate(now.getDate() - day + 8)
+  const nextSun = new Date(now); nextSun.setDate(now.getDate() - day + 14)
+  const nmStr = nextMon.toISOString().split('T')[0]
+  const nsStr = nextSun.toISOString().split('T')[0]
+  return todosStore.todos.filter(t =>
+    t.status !== 'completed' && t.dueDate && t.dueDate >= nmStr && t.dueDate <= nsStr
+  ).concat(
+    todosStore.todos.filter(t =>
+      t.status !== 'completed' && !t.dueDate && t.priority === 'high'
+    )
+  ).sort((a, b) => {
+    const pri: Record<string, number> = { high: 0, medium: 1, low: 2 }
+    return (pri[a.priority] ?? 3) - (pri[b.priority] ?? 3)
+  })
 })
 
 function toggleTodoStatus(todo: any) {
@@ -251,14 +274,31 @@ onMounted(() => {
 
         <div v-if="upcomingTodos.length" class="focus-card">
           <div class="focus-header">
-            <span class="focus-title">🟡 近期关注</span>
-            <span class="focus-count">{{ upcomingTodos.length }}</span>
+            <span class="focus-title">📅 本周关注</span>
+            <span class="focus-count">{{ upcomingTodos.filter(t => t.status !== 'completed').length }} 待处理</span>
           </div>
           <div class="focus-body">
-            <div v-for="t in upcomingTodos.slice(0, 5)" :key="t.id" class="focus-item" @click="router.push('/todos')">
+            <div v-for="t in upcomingTodos.slice(0, 6)" :key="t.id" class="focus-item" @click="router.push('/todos')">
+              <button class="focus-check" :class="{ 'check-done': t.status === 'completed' }" @click.stop="toggleTodoStatus(t)"></button>
+              <span :class="['focus-text', { 'focus-text-done': t.status === 'completed' }]">{{ t.title }}</span>
+              <span class="focus-date">{{ friendlyDate(t.dueDate) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="nextWeekTodos.length" class="focus-row-wrap" style="margin-top:-2px">
+        <div class="focus-card" style="grid-column: 1 / -1">
+          <div class="focus-header">
+            <span class="focus-title">📋 下周计划</span>
+            <span class="focus-count">{{ nextWeekTodos.length }} 项</span>
+          </div>
+          <div class="focus-body focus-body-grid">
+            <div v-for="t in nextWeekTodos.slice(0, 6)" :key="t.id" class="focus-item" @click="router.push('/todos')">
               <button class="focus-check" @click.stop="toggleTodoStatus(t)"></button>
               <span class="focus-text">{{ t.title }}</span>
-              <span class="focus-date">{{ friendlyDate(t.dueDate) }}</span>
+              <span :class="['focus-pri', 'pri-' + t.priority]">{{ t.priority === 'high' ? '紧急' : t.priority === 'medium' ? '重要' : '一般' }}</span>
+              <span class="focus-date">{{ t.dueDate ? friendlyDate(t.dueDate) : '待定' }}</span>
             </div>
           </div>
         </div>
@@ -503,8 +543,18 @@ onMounted(() => {
 .focus-text { flex: 1; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .focus-date { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
 .focus-date-red { color: #ef4444; font-weight: 600; }
-
-@media (max-width: 768px) { .focus-row-wrap { grid-template-columns: 1fr; } }
+.focus-text-done { text-decoration: line-through; color: var(--text-muted); }
+.focus-pri {
+  font-size: 10px; font-weight: 600; padding: 1px 6px;
+  border-radius: var(--radius-full); flex-shrink: 0;
+}
+.pri-high { background: #fef2f2; color: #dc2626; }
+.pri-medium { background: #fffbeb; color: #d97706; }
+.pri-low { background: #f0fdf4; color: #16a34a; }
+.focus-body-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px;
+}
+@media (max-width: 768px) { .focus-row-wrap { grid-template-columns: 1fr; } .focus-body-grid { grid-template-columns: 1fr; } }
 
 .mini-progress {
   width: 60px; height: 4px; background: var(--border-light, var(--border));

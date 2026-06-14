@@ -3,6 +3,7 @@ import { ref, onMounted, computed, watch, inject } from 'vue'
 import { useWorkLogsStore } from '../stores/workLogs'
 import { useProjectsStore } from '../stores/projects'
 import { useClientsStore } from '../stores/clients'
+import { useTodosStore } from '../stores/todos'
 import { WORK_CATEGORIES } from '../types'
 import type { WorkLog, WorkCategoryId, Report } from '../types'
 import { storage } from '../utils/storage'
@@ -13,6 +14,7 @@ const workLogsStore = useWorkLogsStore()
 const showAiConfigPrompt = inject<() => void>('showAiConfigPrompt', () => {})
 const projectsStore = useProjectsStore()
 const clientsStore = useClientsStore()
+const todosStore = useTodosStore()
 
 const currentDate = ref(new Date())
 const selectedDate = ref(new Date().toISOString().split('T')[0])
@@ -255,8 +257,54 @@ function buildLocalReport(): string {
     }
     lines.push('')
   }
-  lines.push('## 三、下一步计划')
-  lines.push('- （请补充）')
+  lines.push('## 三、下周计划')
+
+  const now = new Date()
+  const day = now.getDay() || 7
+  const nextMon = new Date(now); nextMon.setDate(now.getDate() - day + 8)
+  const nextSun = new Date(now); nextSun.setDate(now.getDate() - day + 14)
+  const nmStr = nextMon.toISOString().split('T')[0]
+  const nsStr = nextSun.toISOString().split('T')[0]
+
+  const overdue = todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate < now.toISOString().split('T')[0])
+  const nextWeek = todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate >= nmStr && t.dueDate <= nsStr)
+  const highNoDate = todosStore.todos.filter(t => t.status !== 'completed' && !t.dueDate && t.priority === 'high')
+
+  if (overdue.length) {
+    lines.push('')
+    lines.push('**优先处理（逾期未完成）：**')
+    for (const t of overdue.sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''))) {
+      const proj = t.projectId ? projectsStore.projects.find(p => p.id === t.projectId) : null
+      const projTag = proj ? ` [${proj.name}]` : ''
+      lines.push(`- 🔴 ${t.title}${projTag}（截止 ${t.dueDate}）`)
+    }
+  }
+
+  if (nextWeek.length) {
+    lines.push('')
+    lines.push('**本周计划：**')
+    for (const t of nextWeek.sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''))) {
+      const proj = t.projectId ? projectsStore.projects.find(p => p.id === t.projectId) : null
+      const projTag = proj ? ` [${proj.name}]` : ''
+      const priTag = t.priority === 'high' ? '（紧急）' : ''
+      lines.push(`- ${t.title}${projTag}${priTag}（截止 ${t.dueDate}）`)
+    }
+  }
+
+  if (highNoDate.length) {
+    lines.push('')
+    lines.push('**持续推进（高优先级）：**')
+    for (const t of highNoDate) {
+      const proj = t.projectId ? projectsStore.projects.find(p => p.id === t.projectId) : null
+      const projTag = proj ? ` [${proj.name}]` : ''
+      lines.push(`- ${t.title}${projTag}`)
+    }
+  }
+
+  if (!overdue.length && !nextWeek.length && !highNoDate.length) {
+    lines.push('- （暂无待办事项）')
+  }
+
   return lines.join('\n').trim()
 }
 
@@ -280,7 +328,34 @@ async function generateReport() {
         if (proj) prefix += `/${proj}`
         return `${prefix}: ${l.content}`
       })
-      const prompt = `请根据以下工作日志记录，生成一份${typeLabel}（${summaryTitle.value}）。\n要求：\n1. 使用 Markdown 格式\n2. 包含工作概况、工作明细、下一步计划三个部分（用二级标题）\n3. 用简洁专业的语言\n4. 按项目或工作类型归纳总结\n5. 适合直接复制粘贴到工作汇报中\n\n工作日志：\n${logTexts.join('\n')}`
+
+      const now = new Date()
+      const todayStr = now.toISOString().split('T')[0]
+      const day = now.getDay() || 7
+      const nextMon = new Date(now); nextMon.setDate(now.getDate() - day + 8)
+      const nextSun = new Date(now); nextSun.setDate(now.getDate() - day + 14)
+      const nmStr = nextMon.toISOString().split('T')[0]
+      const nsStr = nextSun.toISOString().split('T')[0]
+
+      const overdueTodos = todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate < todayStr)
+      const nextWeekTodos = todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate >= nmStr && t.dueDate <= nsStr)
+      const highTodos = todosStore.todos.filter(t => t.status !== 'completed' && !t.dueDate && t.priority === 'high')
+
+      let todoContext = ''
+      if (overdueTodos.length || nextWeekTodos.length || highTodos.length) {
+        todoContext = '\n\n待办事项参考（请据此生成下周计划）：'
+        if (overdueTodos.length) {
+          todoContext += '\n逾期未完成：' + overdueTodos.map(t => `${t.title}（截止${t.dueDate}）`).join('；')
+        }
+        if (nextWeekTodos.length) {
+          todoContext += '\n下周截止：' + nextWeekTodos.map(t => `${t.title}（截止${t.dueDate}）`).join('；')
+        }
+        if (highTodos.length) {
+          todoContext += '\n高优先级待处理：' + highTodos.map(t => t.title).join('；')
+        }
+      }
+
+      const prompt = `请根据以下工作日志记录，生成一份${typeLabel}（${summaryTitle.value}）。\n要求：\n1. 使用 Markdown 格式\n2. 包含工作概况、工作明细、下周计划三个部分（用二级标题）\n3. 下周计划要结合待办事项数据，分为"优先处理（逾期）"、"本周计划"、"持续推进"三个小节\n4. 用简洁专业的语言\n5. 按项目或工作类型归纳总结\n6. 适合直接复制粘贴到工作汇报中\n\n工作日志：\n${logTexts.join('\n')}${todoContext}`
       const result = await chatWithAI([{ role: 'user', content: prompt }])
       reportContent.value = result
     } catch {
@@ -384,6 +459,7 @@ onMounted(() => {
   projectsStore.loadProjects()
   projectsStore.loadPhases()
   clientsStore.loadClients()
+  todosStore.loadTodos()
   reports.value = storage.getReports()
 })
 </script>
