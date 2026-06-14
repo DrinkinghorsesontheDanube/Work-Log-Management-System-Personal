@@ -33,6 +33,13 @@ const stats = computed(() => ({
   todayLogs: workLogsStore.workLogs.filter(w => w.date === todayStr).length
 }))
 
+const clientCount = computed(() => clientsStore.clients.length)
+const projectCount = computed(() => projectsStore.projects.length)
+const activeProjectCount = computed(() => projectsStore.projects.filter(p => p.status === 'in_progress').length)
+const logCount = computed(() => workLogsStore.workLogs.length)
+const todoCount = computed(() => todosStore.todos.length)
+const pendingTodoCount = computed(() => todosStore.todos.filter(t => t.status !== 'completed').length)
+
 const recentLogs = computed(() =>
   [...workLogsStore.workLogs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6)
 )
@@ -146,6 +153,27 @@ onMounted(() => {
         </div>
       </div>
 
+      <div class="stats-bar">
+        <div class="stat-card">
+          <span class="stat-num">{{ clientCount }}</span>
+          <span class="stat-label">客户</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num">{{ projectCount }}</span>
+          <span class="stat-label">项目</span>
+          <span class="stat-sub">{{ activeProjectCount }} 进行中</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num">{{ logCount }}</span>
+          <span class="stat-label">工作日志</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-num">{{ todoCount }}</span>
+          <span class="stat-label">待办</span>
+          <span class="stat-sub">{{ pendingTodoCount }} 待处理</span>
+        </div>
+      </div>
+
       <div class="card input-card">
         <div class="input-wrap">
           <textarea
@@ -168,6 +196,29 @@ onMounted(() => {
             <span v-if="aiAnalyzing" class="btn-spinner"></span>
             {{ aiAnalyzing ? 'AI 分析中…' : '分析' }}
           </button>
+        </div>
+      </div>
+
+      <div class="stats-overview">
+        <div class="overview-card">
+          <span class="overview-icon">👥</span>
+          <span class="overview-num">{{ clientCount }}</span>
+          <span class="overview-label">客户数量</span>
+        </div>
+        <div class="overview-card">
+          <span class="overview-icon">📁</span>
+          <span class="overview-num">{{ projectCount }}</span>
+          <span class="overview-label">项目数量</span>
+        </div>
+        <div class="overview-card">
+          <span class="overview-icon">📝</span>
+          <span class="overview-num">{{ logCount }}</span>
+          <span class="overview-label">工作日志</span>
+        </div>
+        <div class="overview-card">
+          <span class="overview-icon">✅</span>
+          <span class="overview-num">{{ todoCount }}</span>
+          <span class="overview-label">待办事项</span>
         </div>
       </div>
 
@@ -349,6 +400,39 @@ onMounted(() => {
 .stat-item:hover { border-color: var(--primary); box-shadow: var(--shadow-xs); }
 .stat-num { font-size: 20px; font-weight: 700; color: var(--primary); line-height: 1.1; }
 .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.stat-card .stat-num {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1;
+}
+.stat-card .stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+.stat-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+@media (max-width: 600px) { .stats-bar { grid-template-columns: repeat(2, 1fr); } }
 
 .input-card { margin-bottom: 16px; }
 .smart-input {

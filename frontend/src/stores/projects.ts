@@ -133,6 +133,18 @@ export const useProjectsStore = defineStore('projects', () => {
     savePhases()
   }
 
+  function reorderPhases(fromId: string, toId: string) {
+    const list = [...phases.value]
+    const fromIdx = list.findIndex(p => p.id === fromId)
+    const toIdx = list.findIndex(p => p.id === toId)
+    if (fromIdx === -1 || toIdx === -1) return
+    const [moved] = list.splice(fromIdx, 1)
+    list.splice(toIdx, 0, moved)
+    list.forEach((p, i) => p.order = i)
+    phases.value = list
+    savePhases()
+  }
+
   const inProgressProjects = computed(() =>
     projects.value.filter(p => p.status === 'in_progress')
   )
@@ -157,6 +169,7 @@ export const useProjectsStore = defineStore('projects', () => {
     updatePhase,
     deletePhase,
     resetPhases,
+    reorderPhases,
     inProgressProjects,
     completedProjects
   }

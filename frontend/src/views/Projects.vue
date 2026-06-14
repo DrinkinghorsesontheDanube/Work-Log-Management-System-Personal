@@ -6,7 +6,7 @@ import { useClientsStore } from '../stores/clients'
 import { useTodosStore } from '../stores/todos'
 import { useWorkLogsStore } from '../stores/workLogs'
 import ConfirmModal from '../components/ConfirmModal.vue'
-import type { Project } from '../types'
+import type { Project, ProjectPhase } from '../types'
 
 const router = useRouter()
 const projectsStore = useProjectsStore()
@@ -51,6 +51,12 @@ const sortBy = ref<'name' | 'startDate' | 'progress' | 'budget'>('startDate')
 const sortDir = ref<'asc' | 'desc'>('desc')
 const viewMode = ref<'grid' | 'list'>('grid')
 
+const phaseExpanded = ref(false)
+const newPhaseName = ref('')
+const newPhaseColor = ref('#6366f1')
+const editingPhase = ref<ProjectPhase | null>(null)
+const dragPhase = ref<ProjectPhase | null>(null)
+
 const statusOptions = [
   { label: '规划中', value: 'planning' },
   { label: '进行中', value: 'in_progress' },
@@ -72,6 +78,49 @@ function getPhaseName(id: string) {
 
 function getPhaseColor(id: string) {
   return projectsStore.phases.find(p => p.id === id)?.color || '#6366f1'
+}
+
+function addPhase() {
+  if (!newPhaseName.value.trim()) return
+  projectsStore.addPhase(newPhaseName.value, newPhaseColor.value)
+  newPhaseName.value = ''
+  newPhaseColor.value = '#6366f1'
+}
+
+function startEditPhase(phase: ProjectPhase) {
+  editingPhase.value = { ...phase }
+}
+
+function saveEditPhase() {
+  if (!editingPhase.value) return
+  projectsStore.updatePhase(editingPhase.value.id, {
+    name: editingPhase.value.name,
+    color: editingPhase.value.color
+  })
+  editingPhase.value = null
+}
+
+function deletePhase(id: string) {
+  projectsStore.deletePhase(id)
+}
+
+function resetPhases() {
+  projectsStore.resetPhases()
+}
+
+function onDragStart(e: DragEvent, phase: ProjectPhase) {
+  dragPhase.value = phase
+  e.dataTransfer!.effectAllowed = 'move'
+}
+
+function onDragOver(e: DragEvent, phase: ProjectPhase) {
+  e.dataTransfer!.dropEffect = 'move'
+}
+
+function onDrop(target: ProjectPhase) {
+  if (!dragPhase.value || dragPhase.value.id === target.id) return
+  projectsStore.reorderPhases(dragPhase.value.id, target.id)
+  dragPhase.value = null
 }
 
 function getClientName(id: string | null) {
@@ -269,6 +318,48 @@ onMounted(() => {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         新建项目
       </button>
+    </div>
+
+    <div class="phase-section">
+      <div class="phase-section-header" @click="phaseExpanded = !phaseExpanded">
+        <span class="phase-section-title">项目阶段管理</span>
+        <span class="phase-section-toggle">{{ phaseExpanded ? '收起' : '展开' }}</span>
+      </div>
+      <div v-if="phaseExpanded" class="phase-section-body">
+        <div class="phase-add">
+          <input v-model="newPhaseName" placeholder="新阶段名称" class="input" style="flex:1" />
+          <input v-model="newPhaseColor" type="color" class="color-input" />
+          <button class="btn btn-primary btn-sm" @click="addPhase">添加</button>
+          <button class="btn btn-sm" @click="resetPhases">恢复默认</button>
+        </div>
+        <div class="phase-list">
+          <div v-for="phase in sortedPhases" :key="phase.id" class="phase-item"
+            draggable="true"
+            @dragstart="onDragStart($event, phase)"
+            @dragover.prevent="onDragOver($event, phase)"
+            @drop="onDrop(phase)"
+            @dragend="dragPhase = null"
+            :class="{ dragging: dragPhase?.id === phase.id }"
+          >
+            <span class="phase-grip" title="拖拽排序">⋮⋮</span>
+            <template v-if="editingPhase?.id === phase.id">
+              <input v-model="editingPhase.name" class="input" style="flex:1" />
+              <input v-model="editingPhase.color" type="color" class="color-input" />
+              <button class="btn btn-sm btn-primary" @click="saveEditPhase">保存</button>
+              <button class="btn btn-sm" @click="editingPhase = null">取消</button>
+            </template>
+            <template v-else>
+              <span class="phase-dot" :style="{ background: phase.color }"></span>
+              <span class="phase-name">{{ phase.name }}</span>
+              <span class="phase-order">#{{ phase.order + 1 }}</span>
+              <div class="phase-actions">
+                <button class="btn-icon" @click="startEditPhase(phase)" title="编辑">✏</button>
+                <button class="btn-icon delete-icon" @click="deletePhase(phase.id)" title="删除">🗑</button>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="stats-row">
@@ -631,6 +722,37 @@ onMounted(() => {
 .client-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .cell-name-sm { font-size: 12px; font-weight: 600; color: var(--text); }
 .cell-contact-info { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: flex; flex-direction: column; gap: 1px; text-align: left; }
+
+.phase-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.phase-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.phase-section-header:hover { background: var(--bg-hover); }
+.phase-section-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.phase-section-toggle { font-size: 12px; color: var(--primary); }
+.phase-section-body { padding: 0 16px 16px; }
+.phase-add { display: flex; gap: 6px; margin-bottom: 10px; }
+.color-input { width: 34px; height: 32px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; padding: 2px; }
+.phase-list { display: flex; flex-direction: column; gap: 4px; }
+.phase-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg); border-radius: var(--radius-sm); transition: all 0.12s; }
+.phase-item:hover { background: var(--bg-hover); }
+.phase-item.dragging { opacity: 0.5; }
+.phase-grip { cursor: grab; color: var(--text-muted); font-size: 12px; letter-spacing: -2px; }
+.phase-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.phase-name { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); }
+.phase-order { font-size: 11px; color: var(--text-muted); }
+.phase-actions { display: flex; gap: 2px; }
+.delete-icon:hover { color: var(--rose); }
 
 @media (max-width: 900px) {
   .toolbar { flex-direction: column; align-items: stretch; }
