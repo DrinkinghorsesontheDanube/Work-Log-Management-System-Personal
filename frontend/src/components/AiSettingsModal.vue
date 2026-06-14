@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useMessage } from 'naive-ui'
+import { ref } from 'vue'
 import { storage } from '../utils/storage'
 import { testConnection } from '../services/aiService'
 import { AI_PROVIDERS } from '../types'
 import type { AiProvider } from '../types'
-
-const message = useMessage()
 
 const visible = ref(false)
 const selectedProviderId = ref('deepseek')
@@ -16,6 +13,7 @@ const model = ref('')
 const testing = ref(false)
 const testResult = ref<{ success: boolean; message: string } | null>(null)
 const showApiKey = ref(false)
+const saved = ref(false)
 
 const providerTemplates = AI_PROVIDERS
 
@@ -29,18 +27,23 @@ const providerDescs: Record<string, string> = {
   custom: '自定义 OpenAI 兼容接口'
 }
 
-const aiStatus = computed(() => {
-  const saved = storage.getAiProvider()
-  if (saved && saved.apiKey) {
-    const name = providerTemplates.find(p => p.id === saved.id)?.name || saved.id
-    return { configured: true, name }
+const aiStatus = ref<{ configured: boolean; name: string }>({ configured: false, name: '' })
+
+function refreshAiStatus() {
+  const savedConfig = storage.getAiProvider()
+  if (savedConfig && savedConfig.apiKey) {
+    const name = providerTemplates.find(p => p.id === savedConfig.id)?.name || savedConfig.id
+    aiStatus.value = { configured: true, name }
+  } else {
+    aiStatus.value = { configured: false, name: '' }
   }
-  return { configured: false, name: '' }
-})
+}
 
 function show() {
   loadAiConfig()
+  refreshAiStatus()
   testResult.value = null
+  saved.value = false
   visible.value = true
 }
 
@@ -76,7 +79,7 @@ function onProviderChange() {
 
 function saveAiConfig() {
   if (!apiKey.value.trim()) {
-    message.warning('请输入 API Key')
+    testResult.value = { success: false, message: '请输入 API Key' }
     return
   }
   const provider: AiProvider = {
@@ -88,7 +91,10 @@ function saveAiConfig() {
     enabled: true
   }
   storage.saveAiProvider(provider)
-  message.success('AI 配置已保存')
+  refreshAiStatus()
+  saved.value = true
+  testResult.value = null
+  setTimeout(() => { saved.value = false }, 2000)
 }
 
 function clearAiConfig() {
@@ -99,12 +105,13 @@ function clearAiConfig() {
   selectedProviderId.value = 'deepseek'
   testResult.value = null
   showApiKey.value = false
-  message.success('AI 配置已清除')
+  saved.value = false
+  refreshAiStatus()
 }
 
 async function doTestConnection() {
   if (!apiKey.value.trim()) {
-    message.warning('请先输入 API Key')
+    testResult.value = { success: false, message: '请先输入 API Key' }
     return
   }
   testing.value = true
@@ -153,6 +160,12 @@ defineExpose({ show })
           </div>
 
           <div class="ais-body">
+            <Transition name="save-fade">
+              <div v-if="saved" class="ais-save-ok">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                配置已保存
+              </div>
+            </Transition>
             <div class="ais-field">
               <label class="ais-label">供应商</label>
               <select v-model="selectedProviderId" class="input ais-select" @change="onProviderChange">
@@ -436,6 +449,15 @@ defineExpose({ show })
 .ais-save-btn {
   padding: 8px 24px;
 }
+
+.ais-save-ok {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 8px;
+  background: #dcfce7; color: #16a34a;
+  font-size: 13px; font-weight: 500;
+}
+.save-fade-enter-active, .save-fade-leave-active { transition: all 0.3s ease; }
+.save-fade-enter-from, .save-fade-leave-to { opacity: 0; transform: translateY(-4px); }
 
 .ais-fade-enter-active,
 .ais-fade-leave-active {

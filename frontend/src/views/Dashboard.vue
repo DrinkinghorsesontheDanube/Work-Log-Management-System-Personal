@@ -39,6 +39,39 @@ const activeProjectCount = computed(() => projectsStore.projects.filter(p => p.s
 const logCount = computed(() => workLogsStore.workLogs.length)
 const todoCount = computed(() => todosStore.todos.length)
 const pendingTodoCount = computed(() => todosStore.todos.filter(t => t.status !== 'completed').length)
+const activeProjects = computed(() => projectsStore.projects.filter(p => p.status === 'in_progress'))
+
+const today = new Date().toISOString().split('T')[0]
+const overdueTodos = computed(() =>
+  todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate < today)
+    .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''))
+)
+const todayTodos = computed(() =>
+  todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate === today)
+)
+const upcomingTodos = computed(() => {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const in3 = new Date()
+  in3.setDate(in3.getDate() + 3)
+  const tStr = tomorrow.toISOString().split('T')[0]
+  const eStr = in3.toISOString().split('T')[0]
+  return todosStore.todos.filter(t =>
+    t.status !== 'completed' && t.dueDate && t.dueDate > today && t.dueDate <= eStr
+  ).sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''))
+})
+
+function toggleTodoStatus(todo: any) {
+  todosStore.updateTodo(todo.id, { status: todo.status === 'completed' ? 'pending' : 'completed' })
+}
+
+function friendlyDate(dateStr: string) {
+  if (dateStr === today) return '今天'
+  const d = new Date(today)
+  d.setDate(d.getDate() + 1)
+  if (dateStr === d.toISOString().split('T')[0]) return '明天'
+  return dateStr.slice(5).replace('-', '/')
+}
 
 const recentLogs = computed(() =>
   [...workLogsStore.workLogs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6)
@@ -131,43 +164,29 @@ onMounted(() => {
 
 <template>
   <div class="dashboard">
-    <div class="dash-left">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">工作台</h1>
-          <p class="page-subtitle">{{ todayFormatted }}</p>
-        </div>
-        <div class="stats">
-          <div class="stat-item" @click="router.push('/projects')">
-            <span class="stat-num">{{ stats.activeProjects }}</span>
-            <span class="stat-label">进行中</span>
-          </div>
-          <div class="stat-item" @click="router.push('/todos')">
-            <span class="stat-num">{{ stats.pendingTodos }}</span>
-            <span class="stat-label">待办</span>
-          </div>
-          <div class="stat-item" @click="router.push('/calendar')">
-            <span class="stat-num">{{ stats.todayLogs }}</span>
-            <span class="stat-label">今日日志</span>
-          </div>
-        </div>
+    <div class="page-header" style="width:100%">
+      <div>
+        <h1 class="page-title">工作台</h1>
+        <p class="page-subtitle">{{ todayFormatted }}</p>
       </div>
+    </div>
 
+    <div class="dash-left">
       <div class="stats-bar">
-        <div class="stat-card">
+        <div class="stat-card" @click="router.push('/clients')">
           <span class="stat-num">{{ clientCount }}</span>
           <span class="stat-label">客户</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" @click="router.push('/projects')">
           <span class="stat-num">{{ projectCount }}</span>
           <span class="stat-label">项目</span>
           <span class="stat-sub">{{ activeProjectCount }} 进行中</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" @click="router.push('/calendar')">
           <span class="stat-num">{{ logCount }}</span>
           <span class="stat-label">工作日志</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" @click="router.push('/todos')">
           <span class="stat-num">{{ todoCount }}</span>
           <span class="stat-label">待办</span>
           <span class="stat-sub">{{ pendingTodoCount }} 待处理</span>
@@ -199,26 +218,49 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="stats-overview">
-        <div class="overview-card">
-          <span class="overview-icon">👥</span>
-          <span class="overview-num">{{ clientCount }}</span>
-          <span class="overview-label">客户数量</span>
+      <div v-if="overdueTodos.length || todayTodos.length || upcomingTodos.length" class="focus-row-wrap">
+        <div v-if="overdueTodos.length || todayTodos.length" class="focus-card">
+          <div class="focus-header">
+            <span class="focus-title">🔴 今日关注</span>
+            <span class="focus-count">{{ overdueTodos.length + todayTodos.length }}</span>
+          </div>
+          <div class="focus-body">
+            <div v-if="overdueTodos.length" class="focus-tier">
+              <div class="tier-head">
+                <span class="tier-dot tier-dot-red"></span>
+                <span class="tier-label">逾期</span>
+              </div>
+              <div v-for="t in overdueTodos.slice(0, 3)" :key="t.id" class="focus-item" @click="router.push('/todos')">
+                <button class="focus-check" :class="{ 'check-done': t.status === 'completed' }" @click.stop="toggleTodoStatus(t)"></button>
+                <span class="focus-text">{{ t.title }}</span>
+                <span class="focus-date focus-date-red">{{ friendlyDate(t.dueDate) }}</span>
+              </div>
+            </div>
+            <div v-if="todayTodos.length" class="focus-tier">
+              <div class="tier-head">
+                <span class="tier-dot tier-dot-blue"></span>
+                <span class="tier-label">今日</span>
+              </div>
+              <div v-for="t in todayTodos.slice(0, 3)" :key="t.id" class="focus-item" @click="router.push('/todos')">
+                <button class="focus-check" @click.stop="toggleTodoStatus(t)"></button>
+                <span class="focus-text">{{ t.title }}</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="overview-card">
-          <span class="overview-icon">📁</span>
-          <span class="overview-num">{{ projectCount }}</span>
-          <span class="overview-label">项目数量</span>
-        </div>
-        <div class="overview-card">
-          <span class="overview-icon">📝</span>
-          <span class="overview-num">{{ logCount }}</span>
-          <span class="overview-label">工作日志</span>
-        </div>
-        <div class="overview-card">
-          <span class="overview-icon">✅</span>
-          <span class="overview-num">{{ todoCount }}</span>
-          <span class="overview-label">待办事项</span>
+
+        <div v-if="upcomingTodos.length" class="focus-card">
+          <div class="focus-header">
+            <span class="focus-title">🟡 近期关注</span>
+            <span class="focus-count">{{ upcomingTodos.length }}</span>
+          </div>
+          <div class="focus-body">
+            <div v-for="t in upcomingTodos.slice(0, 5)" :key="t.id" class="focus-item" @click="router.push('/todos')">
+              <button class="focus-check" @click.stop="toggleTodoStatus(t)"></button>
+              <span class="focus-text">{{ t.title }}</span>
+              <span class="focus-date">{{ friendlyDate(t.dueDate) }}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -229,7 +271,7 @@ onMounted(() => {
             <button class="link" @click="router.push('/calendar')">查看全部</button>
           </div>
           <div v-if="recentLogs.length === 0" class="card-empty">暂无日志记录</div>
-          <div v-for="log in recentLogs" :key="log.id" class="list-row" @click="router.push('/calendar')">
+          <div v-for="log in recentLogs.slice(0, 4)" :key="log.id" class="list-row" @click="router.push('/calendar')">
             <span class="row-date">{{ log.date.slice(5) }}</span>
             <span class="row-text">{{ log.content }}</span>
             <span v-if="getProjectName(log.projectId)" class="badge badge-blue">{{ getProjectName(log.projectId) }}</span>
@@ -237,32 +279,14 @@ onMounted(() => {
         </div>
         <div class="card">
           <div class="card-header">
-            <span class="card-title">待办事项</span>
-            <button class="link" @click="router.push('/todos')">查看全部</button>
+            <span class="card-title">进行中项目</span>
+            <button class="link" @click="router.push('/projects')">查看全部</button>
           </div>
-          <div v-if="recentTodos.length === 0" class="card-empty">暂无待办</div>
-          <div v-for="t in recentTodos" :key="t.id" class="list-row">
-            <span :class="['dot', t.priority === 'high' ? 'dot-rose' : t.priority === 'medium' ? 'dot-amber' : 'dot-muted']"></span>
-            <span class="row-text">{{ t.title }}</span>
-            <span class="row-date">{{ t.dueDate?.slice(5) || '' }}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">项目概览</span>
-          <button class="link" @click="router.push('/projects')">查看全部</button>
-        </div>
-        <div v-if="projectsStore.projects.length === 0" class="card-empty">暂无项目</div>
-        <div class="project-grid">
-          <div v-for="p in projectsStore.projects.slice(0, 6)" :key="p.id" class="project-item" @click="router.push(`/projects/${p.id}`)">
-            <div class="project-top">
-              <span class="project-name">{{ p.name }}</span>
-              <span class="project-pct">{{ p.progress }}%</span>
-            </div>
-            <div class="progress-track"><div class="progress-fill" :style="{ width: p.progress + '%' }"></div></div>
-            <span class="project-phase">{{ projectsStore.phases.find(ph => ph.id === p.currentPhaseId)?.name || '' }}</span>
+          <div v-if="activeProjects.length === 0" class="card-empty">暂无进行中项目</div>
+          <div v-for="p in activeProjects.slice(0, 4)" :key="p.id" class="list-row" @click="router.push(`/projects/${p.id}`)">
+            <span class="row-text" style="flex:1">{{ p.name }}</span>
+            <div class="mini-progress"><div class="mini-fill" :style="{ width: p.progress + '%' }"></div></div>
+            <span class="row-pct">{{ p.progress }}%</span>
           </div>
         </div>
       </div>
@@ -388,7 +412,10 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.dashboard { display: flex; gap: 20px; width: 100%; min-height: 100%; }
+.dashboard { display: flex; flex-wrap: wrap; gap: 20px; width: 100%; min-height: 100%; }
+.dashboard :deep(.page-header) { margin-bottom: 12px; }
+.dashboard :deep(.page-title) { font-size: 18px; }
+.dashboard :deep(.page-subtitle) { margin-top: 2px; }
 .dash-left { flex: 1; min-width: 0; }
 
 .stats { display: flex; gap: 10px; }
@@ -434,6 +461,58 @@ onMounted(() => {
 }
 @media (max-width: 600px) { .stats-bar { grid-template-columns: repeat(2, 1fr); } }
 
+.focus-row-wrap {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;
+}
+.focus-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.focus-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid var(--border-light, var(--border));
+}
+.focus-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.focus-count {
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  background: var(--bg); padding: 1px 8px; border-radius: var(--radius-full);
+}
+.focus-body { padding: 4px 0; }
+.focus-tier { padding: 0 16px; }
+.focus-tier + .focus-tier { border-top: 1px solid var(--border-light, var(--border)); }
+.tier-head {
+  display: flex; align-items: center; gap: 6px; padding: 8px 0 2px;
+}
+.tier-dot { width: 6px; height: 6px; border-radius: 50%; }
+.tier-dot-red { background: #ef4444; }
+.tier-dot-blue { background: #2563eb; }
+.tier-dot-amber { background: #f59e0b; }
+.tier-label { font-size: 11px; font-weight: 600; color: var(--text-secondary, var(--text-muted)); }
+.focus-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 16px; cursor: pointer; transition: background 0.1s;
+}
+.focus-item:hover { background: var(--bg-hover); }
+.focus-check {
+  width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--border); background: transparent;
+  cursor: pointer; padding: 0; transition: all 0.15s;
+}
+.focus-check:hover { border-color: var(--primary); }
+.check-done { border-color: var(--primary); background: var(--primary); }
+.focus-text { flex: 1; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.focus-date { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+.focus-date-red { color: #ef4444; font-weight: 600; }
+
+@media (max-width: 768px) { .focus-row-wrap { grid-template-columns: 1fr; } }
+
+.mini-progress {
+  width: 60px; height: 4px; background: var(--border-light, var(--border));
+  border-radius: var(--radius-full); overflow: hidden; flex-shrink: 0;
+}
+.mini-fill { height: 100%; background: var(--primary); border-radius: var(--radius-full); transition: width 0.3s; }
+.row-pct { font-size: 11px; color: var(--text-muted); width: 32px; text-align: right; flex-shrink: 0; }
+
 .input-card { margin-bottom: 16px; }
 .smart-input {
   width: 100%; border: none; outline: none; font-size: 14px; font-family: var(--font);
@@ -470,28 +549,19 @@ onMounted(() => {
 .row-date { font-size: 12px; font-weight: 500; color: var(--primary); flex-shrink: 0; min-width: 40px; }
 .row-text { flex: 1; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; padding: 14px 18px; }
-.project-item {
-  background: var(--bg); border: 1px solid var(--border-light); border-radius: var(--radius-sm);
-  padding: 12px; cursor: pointer; transition: all 0.15s;
-}
-.project-item:hover { border-color: var(--primary); box-shadow: var(--shadow-xs); }
-.project-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.project-name { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.project-pct { font-size: 12px; font-weight: 700; color: var(--primary); flex-shrink: 0; }
-.project-phase { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block; }
+
 
 .dash-right {
   width: 440px; flex-shrink: 0; background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius); overflow: hidden; align-self: flex-start;
-  position: sticky; top: 0; margin-top: 82px;
+  position: sticky; top: 14px; margin-top: 0; min-height: 450px;
 }
 .right-head {
   display: flex; justify-content: space-between; align-items: center;
   padding: 14px 18px; border-bottom: 1px solid var(--border-light);
 }
 .right-title { font-size: 14px; font-weight: 600; color: var(--text); }
-.right-body { padding: 16px 18px; max-height: calc(100vh - 242px); overflow-y: auto; }
+.right-body { padding: 16px 18px; max-height: calc(100vh - 180px); overflow-y: auto; }
 
 .section { margin-bottom: 16px; }
 .section:last-of-type { margin-bottom: 0; }
@@ -557,5 +627,5 @@ select.edit-input { cursor: pointer; }
 }
 
 @media (max-width: 1024px) { .dashboard { flex-direction: column; } .dash-right { width: 100%; position: static; } }
-@media (max-width: 768px) { .page-header { flex-direction: column; align-items: flex-start; gap: 12px; } .mid-grid { grid-template-columns: 1fr; } .project-grid { grid-template-columns: 1fr; } }
+@media (max-width: 768px) { .page-header { flex-direction: column; align-items: flex-start; gap: 12px; } .mid-grid { grid-template-columns: 1fr; } }
 </style>
