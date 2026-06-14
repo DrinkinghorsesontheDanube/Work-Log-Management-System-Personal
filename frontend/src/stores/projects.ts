@@ -10,7 +10,9 @@ export const useProjectsStore = defineStore('projects', () => {
   const phases = ref<ProjectPhase[]>([])
 
   function loadProjects() {
-    projects.value = storage.getProjects()
+    projects.value = storage.getProjects().map((p: any) => ({
+      clientLeaderId: null, clientExecutorId: null, ...p
+    }))
   }
 
   function saveProjects() {

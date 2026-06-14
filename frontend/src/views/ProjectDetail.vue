@@ -559,20 +559,30 @@ onMounted(() => {
 <template>
   <div class="page" v-if="project">
     <div class="page-header">
-      <div>
-        <button class="btn btn-ghost" style="margin-bottom: 6px" @click="router.push('/projects')">&larr; 返回</button>
-        <h1 class="page-title">{{ project.name }}</h1>
+      <div class="header-left">
+        <div class="back-row">
+          <button class="back-btn" @click="router.push('/projects')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            <span>项目列表</span>
+          </button>
+        </div>
+        <div class="title-line">
+          <h1 class="page-title">{{ project.name }}</h1>
+          <div
+            class="status-chip"
+            :class="{
+              'chip-amber': project.status === 'planning',
+              'chip-green': project.status === 'in_progress',
+              'chip-blue': project.status === 'completed',
+              'chip-gray': project.status === 'paused'
+            }"
+          >
+            <span class="status-dot"></span>
+            <span>{{ statusText[project.status] }}</span>
+          </div>
+        </div>
         <p class="page-subtitle">{{ project.description || '暂无描述' }}</p>
       </div>
-      <span
-        class="badge"
-        :class="{
-          'badge-amber': project.status === 'planning',
-          'badge-green': project.status === 'in_progress',
-          'badge-blue': project.status === 'completed',
-          'badge-amber': project.status === 'paused'
-        }"
-      >{{ statusText[project.status] }}</span>
     </div>
 
     <div class="stats-row">
@@ -888,6 +898,37 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.back-row { margin-bottom: 14px; }
+.back-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border: 1px solid var(--border-light, #e2e8f0);
+  border-radius: 8px; background: var(--bg-card, #fff);
+  color: var(--text-secondary, #475569); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+}
+.back-btn:hover { background: var(--bg, #f1f5f9); color: var(--text, #1e293b); border-color: var(--border, #cbd5e1); }
+.back-btn svg { flex-shrink: 0; }
+.header-left { display: flex; flex-direction: column; }
+.title-line { display: flex; align-items: center; gap: 12px; }
+.status-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 18px; border-radius: 20px;
+  font-size: 14px; font-weight: 600;
+  flex-shrink: 0; align-self: flex-start;
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.chip-green { background: #f0fdf4; color: #16a34a; }
+.chip-green .status-dot { background: #22c55e; }
+.chip-amber { background: #fffbeb; color: #d97706; }
+.chip-amber .status-dot { background: #f59e0b; }
+.chip-blue { background: #eff6ff; color: #2563eb; }
+.chip-blue .status-dot { background: #3b82f6; }
+.chip-gray { background: #f8fafc; color: #64748b; }
+.chip-gray .status-dot { background: #94a3b8; }
+
 .card { margin-bottom: 16px; }
 .card:last-of-type { margin-bottom: 0; }
 .modal-wide { width: 600px; }

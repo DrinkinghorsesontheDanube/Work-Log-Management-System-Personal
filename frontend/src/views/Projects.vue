@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectsStore } from '../stores/projects'
 import { useClientsStore } from '../stores/clients'
@@ -39,6 +39,8 @@ const formPhaseId = ref('')
 const formStartDate = ref('')
 const formEndDate = ref('')
 const formClientId = ref<string | null>(null)
+const formClientLeaderId = ref<string | null>(null)
+const formClientExecutorId = ref<string | null>(null)
 const formBudget = ref(0)
 const formManager = ref('')
 
@@ -76,6 +78,23 @@ function getClientName(id: string | null) {
   if (!id) return ''
   return clientsStore.clients.find(c => c.id === id)?.name || ''
 }
+
+const selectedClientContacts = computed(() => {
+  if (!formClientId.value) return []
+  const client = clientsStore.clients.find(c => c.id === formClientId.value)
+  return client?.contacts || []
+})
+
+function getContactName(clientId: string | null, contactId: string | null): string {
+  if (!clientId || !contactId) return ''
+  const client = clientsStore.clients.find(c => c.id === clientId)
+  return client?.contacts.find(ct => ct.id === contactId)?.name || ''
+}
+
+watch(formClientId, () => {
+  formClientLeaderId.value = null
+  formClientExecutorId.value = null
+})
 
 function getProjectTodoCount(projectId: string) {
   return todosStore.todos.filter(t => t.projectId === projectId && t.status !== 'completed').length
@@ -154,6 +173,8 @@ function openAdd() {
   formStartDate.value = new Date().toISOString().split('T')[0]
   formEndDate.value = ''
   formClientId.value = null
+  formClientLeaderId.value = null
+  formClientExecutorId.value = null
   formBudget.value = 0
   formManager.value = ''
   showModal.value = true
@@ -169,6 +190,8 @@ function openEdit(project: Project) {
   formStartDate.value = project.startDate
   formEndDate.value = project.endDate
   formClientId.value = project.clientId
+  formClientLeaderId.value = project.clientLeaderId
+  formClientExecutorId.value = project.clientExecutorId
   formBudget.value = project.budget || 0
   formManager.value = project.manager || ''
   showModal.value = true
@@ -185,6 +208,8 @@ function save() {
       startDate: formStartDate.value,
       endDate: formEndDate.value,
       clientId: formClientId.value,
+      clientLeaderId: formClientLeaderId.value,
+      clientExecutorId: formClientExecutorId.value,
       budget: formBudget.value,
       manager: formManager.value
     }
@@ -208,6 +233,8 @@ function save() {
       startDate: formStartDate.value,
       endDate: formEndDate.value,
       clientId: formClientId.value,
+      clientLeaderId: formClientLeaderId.value,
+      clientExecutorId: formClientExecutorId.value,
       budget: formBudget.value,
       manager: formManager.value
     })
@@ -309,9 +336,9 @@ onMounted(() => {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             {{ p.manager }}
           </span>
-          <span v-if="getClientName(p.clientId)" class="meta-item">
+          <span v-if="getClientName(p.clientId)" class="meta-item client-meta">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-            {{ getClientName(p.clientId) }}
+            {{ getClientName(p.clientId) }}<template v-if="getContactName(p.clientId, p.clientLeaderId)"> · 负责人: {{ getContactName(p.clientId, p.clientLeaderId) }}</template><template v-if="getContactName(p.clientId, p.clientExecutorId)"> · 经办人: {{ getContactName(p.clientId, p.clientExecutorId) }}</template>
           </span>
           <span v-if="p.budget" class="meta-item budget-tag">{{ formatBudget(p.budget) }}</span>
         </div>
@@ -379,7 +406,16 @@ onMounted(() => {
               <span v-else class="cell-empty">-</span>
             </td>
             <td class="col-manager"><span v-if="p.manager">{{ p.manager }}</span><span v-else class="cell-empty">-</span></td>
-            <td class="col-client"><span v-if="getClientName(p.clientId)">{{ getClientName(p.clientId) }}</span><span v-else class="cell-empty">-</span></td>
+            <td class="col-client">
+              <template v-if="getClientName(p.clientId)">
+                <div class="cell-name-sm">{{ getClientName(p.clientId) }}</div>
+                <div v-if="getContactName(p.clientId, p.clientLeaderId) || getContactName(p.clientId, p.clientExecutorId)" class="cell-contact-info">
+                  <span v-if="getContactName(p.clientId, p.clientLeaderId)">负责人: {{ getContactName(p.clientId, p.clientLeaderId) }}</span>
+                  <span v-if="getContactName(p.clientId, p.clientExecutorId)">经办人: {{ getContactName(p.clientId, p.clientExecutorId) }}</span>
+                </div>
+              </template>
+              <span v-else class="cell-empty">-</span>
+            </td>
             <td class="col-budget"><span v-if="p.budget">{{ formatBudget(p.budget) }}</span><span v-else class="cell-empty">-</span></td>
             <td class="col-progress">
               <div class="mini-progress">
@@ -426,6 +462,24 @@ onMounted(() => {
             <div class="form-field">
               <label>项目负责人</label>
               <input v-model="formManager" placeholder="请输入负责人姓名" class="input" />
+            </div>
+          </div>
+          <div v-if="formClientId" class="form-row">
+            <div class="form-field">
+              <label>客户负责人</label>
+              <select v-if="selectedClientContacts.filter(c => c.role === 'leader').length > 0" v-model="formClientLeaderId" class="input">
+                <option :value="null">不指定</option>
+                <option v-for="c in selectedClientContacts.filter(c => c.role === 'leader')" :key="c.id" :value="c.id">{{ c.name }} · {{ c.title }} · {{ c.department }}</option>
+              </select>
+              <div v-else class="input input-empty">暂无负责人联系人</div>
+            </div>
+            <div class="form-field">
+              <label>客户经办人</label>
+              <select v-if="selectedClientContacts.filter(c => c.role === 'executor').length > 0" v-model="formClientExecutorId" class="input">
+                <option :value="null">不指定</option>
+                <option v-for="c in selectedClientContacts.filter(c => c.role === 'executor')" :key="c.id" :value="c.id">{{ c.name }} · {{ c.title }} · {{ c.department }}</option>
+              </select>
+              <div v-else class="input input-empty">暂无经办人联系人</div>
             </div>
           </div>
           <div class="form-row">
@@ -554,7 +608,7 @@ onMounted(() => {
 .col-phase { width: 10%; }
 .col-deadline { width: 10%; }
 .col-manager { width: 7%; }
-.col-client { width: 12%; }
+.col-client { width: 16%; }
 .col-budget { width: 8%; }
 .col-progress { width: 14%; }
 .col-actions { width: 7%; }
@@ -573,6 +627,10 @@ onMounted(() => {
 .range-wrap { display: flex; align-items: center; gap: 10px; }
 .range { flex: 1; accent-color: var(--primary); }
 .range-val { font-size: 13px; font-weight: 600; color: var(--primary); min-width: 36px; }
+.input-empty { color: var(--text-muted); font-size: 13px; padding: 6px 12px; background: var(--bg); cursor: default; }
+.client-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cell-name-sm { font-size: 12px; font-weight: 600; color: var(--text); }
+.cell-contact-info { font-size: 11px; color: var(--text-muted); margin-top: 2px; display: flex; flex-direction: column; gap: 1px; text-align: left; }
 
 @media (max-width: 900px) {
   .toolbar { flex-direction: column; align-items: stretch; }

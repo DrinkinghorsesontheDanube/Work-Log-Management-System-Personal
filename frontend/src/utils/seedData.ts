@@ -102,57 +102,6 @@ export function seedAllData() {
     }
   ]
 
-  const projects: Project[] = [
-    {
-      id: id('proj', 1), name: '市智慧城市大数据平台建设', description: '建设市级大数据汇聚、治理、共享、开放平台，对接30+委办局数据，实现城市运行态势感知',
-      progress: 45, startDate: daysAgo(60), endDate: daysAgo(-90),
-      status: 'in_progress', currentPhaseId: 'solution',
-      phaseHistory: makePhaseHistory([['initiation', 60, '立项完成'], ['survey', 45, '需求调研两周'], ['solution', 20, '方案编写中']]),
-      clientId: null, budget: 1200, manager: '张伟',
-      createdAt: iso(daysAgo(60)), updatedAt: iso(daysAgo(1))
-    },
-    {
-      id: id('proj', 2), name: '教育信息化2.0提升工程', description: '覆盖全市中小学的智慧教育平台升级，含在线教学、教学评价、校园安全三大子系统',
-      progress: 20, startDate: daysAgo(35), endDate: daysAgo(-150),
-      status: 'in_progress', currentPhaseId: 'survey',
-      phaseHistory: makePhaseHistory([['initiation', 35, '可行性报告通过'], ['survey', 10, '正在走访学校']]),
-      clientId: null, budget: 800, manager: '李芳',
-      createdAt: iso(daysAgo(35)), updatedAt: iso(daysAgo(4))
-    },
-    {
-      id: id('proj', 3), name: '区县应急指挥调度系统', description: '建设区县级应急指挥调度平台，整合消防、安监、防汛等多源数据，实现统一调度',
-      progress: 60, startDate: daysAgo(50), endDate: daysAgo(-30),
-      status: 'in_progress', currentPhaseId: 'bidding',
-      phaseHistory: makePhaseHistory([['initiation', 50], ['survey', 40], ['solution', 30, '方案评审通过'], ['bidding', 10, '标书编写中']]),
-      clientId: null, budget: 650, manager: '王强',
-      createdAt: iso(daysAgo(50)), updatedAt: iso(daysAgo(1))
-    },
-    {
-      id: id('proj', 4), name: '交通集团数字化转型规划咨询', description: '为省交通投资集团提供数字化转型顶层设计方案，涵盖智慧高速、智慧港口、智慧物流三大板块',
-      progress: 10, startDate: daysAgo(15), endDate: daysAgo(-180),
-      status: 'in_progress', currentPhaseId: 'initiation',
-      phaseHistory: makePhaseHistory([['initiation', 15, '刚签约，项目启动']]),
-      clientId: null, budget: 350, manager: '陈明',
-      createdAt: iso(daysAgo(15)), updatedAt: iso(daysAgo(2))
-    },
-    {
-      id: id('proj', 5), name: '智慧医疗健康信息平台', description: '市级全民健康信息平台，对接医院HIS/LIS/PACS，实现居民健康档案共享',
-      progress: 100, startDate: daysAgo(180), endDate: daysAgo(15),
-      status: 'completed', currentPhaseId: 'maintenance',
-      phaseHistory: makePhaseHistory([['initiation', 180], ['survey', 160], ['solution', 140], ['bidding', 120], ['contract', 100], ['detail_design', 90], ['implementation', 70], ['testing', 40], ['trial', 25], ['delivery', 15, '已验收交付']]),
-      clientId: null, budget: 960, manager: '赵丽',
-      createdAt: iso(daysAgo(180)), updatedAt: iso(daysAgo(15))
-    },
-    {
-      id: id('proj', 6), name: '政务云迁移与安全加固', description: '将市级各部门业务系统迁移至统一政务云平台，同步实施等保三级安全加固',
-      progress: 70, startDate: daysAgo(80), endDate: daysAgo(-20),
-      status: 'in_progress', currentPhaseId: 'implementation',
-      phaseHistory: makePhaseHistory([['initiation', 80], ['survey', 70], ['solution', 55], ['bidding', 45], ['contract', 35], ['detail_design', 25], ['implementation', 10, '迁移实施中']]),
-      clientId: null, budget: 580, manager: '刘洋',
-      createdAt: iso(daysAgo(80)), updatedAt: iso(daysAgo(2))
-    }
-  ]
-
   const clientIdMap = {
     bigdata: id('client', 1),
     edu: id('client', 2),
@@ -161,6 +110,58 @@ export function seedAllData() {
     health: id('client', 5),
     emergency: id('client', 6)
   }
+
+  const projects: Project[] = [
+    {
+      id: id('proj', 1), name: '市智慧城市大数据平台建设', description: '建设市级大数据汇聚、治理、共享、开放平台，对接30+委办局数据，实现城市运行态势感知',
+      progress: 45, startDate: daysAgo(60), endDate: daysAgo(-90),
+      status: 'in_progress', currentPhaseId: 'solution',
+      phaseHistory: makePhaseHistory([['initiation', 60, '立项完成'], ['survey', 45, '需求调研两周'], ['solution', 20, '方案编写中']]),
+      clientId: clientIdMap.bigdata, clientLeaderId: 'ct_1_1', clientExecutorId: 'ct_1_2', budget: 1200, manager: '张伟',
+      createdAt: iso(daysAgo(60)), updatedAt: iso(daysAgo(1))
+    },
+    {
+      id: id('proj', 2), name: '教育信息化2.0提升工程', description: '覆盖全市中小学的智慧教育平台升级，含在线教学、教学评价、校园安全三大子系统',
+      progress: 20, startDate: daysAgo(35), endDate: daysAgo(-150),
+      status: 'in_progress', currentPhaseId: 'survey',
+      phaseHistory: makePhaseHistory([['initiation', 35, '可行性报告通过'], ['survey', 10, '正在走访学校']]),
+      clientId: clientIdMap.edu, clientLeaderId: 'ct_2_1', clientExecutorId: 'ct_2_2', budget: 800, manager: '李芳',
+      createdAt: iso(daysAgo(35)), updatedAt: iso(daysAgo(4))
+    },
+    {
+      id: id('proj', 3), name: '区县应急指挥调度系统', description: '建设区县级应急指挥调度平台，整合消防、安监、防汛等多源数据，实现统一调度',
+      progress: 60, startDate: daysAgo(50), endDate: daysAgo(-30),
+      status: 'in_progress', currentPhaseId: 'bidding',
+      phaseHistory: makePhaseHistory([['initiation', 50], ['survey', 40], ['solution', 30, '方案评审通过'], ['bidding', 10, '标书编写中']]),
+      clientId: clientIdMap.emergency, clientLeaderId: 'ct_6_1', clientExecutorId: 'ct_6_2', budget: 650, manager: '王强',
+      createdAt: iso(daysAgo(50)), updatedAt: iso(daysAgo(1))
+    },
+    {
+      id: id('proj', 4), name: '交通集团数字化转型规划咨询', description: '为省交通投资集团提供数字化转型顶层设计方案，涵盖智慧高速、智慧港口、智慧物流三大板块',
+      progress: 10, startDate: daysAgo(15), endDate: daysAgo(-180),
+      status: 'in_progress', currentPhaseId: 'initiation',
+      phaseHistory: makePhaseHistory([['initiation', 15, '刚签约，项目启动']]),
+      clientId: clientIdMap.transport, clientLeaderId: 'ct_4_1', clientExecutorId: 'ct_4_2', budget: 350, manager: '陈明',
+      createdAt: iso(daysAgo(15)), updatedAt: iso(daysAgo(2))
+    },
+    {
+      id: id('proj', 5), name: '智慧医疗健康信息平台', description: '市级全民健康信息平台，对接医院HIS/LIS/PACS，实现居民健康档案共享',
+      progress: 100, startDate: daysAgo(180), endDate: daysAgo(15),
+      status: 'completed', currentPhaseId: 'maintenance',
+      phaseHistory: makePhaseHistory([['initiation', 180], ['survey', 160], ['solution', 140], ['bidding', 120], ['contract', 100], ['detail_design', 90], ['implementation', 70], ['testing', 40], ['trial', 25], ['delivery', 15, '已验收交付']]),
+      clientId: clientIdMap.health, clientLeaderId: 'ct_5_1', clientExecutorId: null, budget: 960, manager: '赵丽',
+      createdAt: iso(daysAgo(180)), updatedAt: iso(daysAgo(15))
+    },
+    {
+      id: id('proj', 6), name: '政务云迁移与安全加固', description: '将市级各部门业务系统迁移至统一政务云平台，同步实施等保三级安全加固',
+      progress: 70, startDate: daysAgo(80), endDate: daysAgo(-20),
+      status: 'in_progress', currentPhaseId: 'implementation',
+      phaseHistory: makePhaseHistory([['initiation', 80], ['survey', 70], ['solution', 55], ['bidding', 45], ['contract', 35], ['detail_design', 25], ['implementation', 10, '迁移实施中']]),
+      clientId: clientIdMap.smartcity, clientLeaderId: 'ct_3_1', clientExecutorId: 'ct_3_2', budget: 580, manager: '刘洋',
+      createdAt: iso(daysAgo(80)), updatedAt: iso(daysAgo(2))
+    }
+  ]
+
   const projIdMap = {
     smartcity: id('proj', 1),
     edu: id('proj', 2),

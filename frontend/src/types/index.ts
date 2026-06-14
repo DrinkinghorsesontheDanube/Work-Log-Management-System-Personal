@@ -30,6 +30,8 @@ export interface Project {
   currentPhaseId: string
   phaseHistory: PhaseRecord[]
   clientId: string | null
+  clientLeaderId: string | null
+  clientExecutorId: string | null
   budget: number
   manager: string
   createdAt: string

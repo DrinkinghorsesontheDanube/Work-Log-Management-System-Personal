@@ -360,7 +360,12 @@ onMounted(() => {
   <div class="page" v-if="client">
     <div class="page-header">
       <div class="header-left">
-        <button class="btn btn-ghost" style="margin-bottom: 6px" @click="router.push('/clients')">&larr; 返回客户列表</button>
+        <div class="back-row">
+          <button class="back-btn" @click="router.push('/clients')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            <span>客户列表</span>
+          </button>
+        </div>
         <div class="header-title-row">
           <h1 class="page-title">{{ client.name }}</h1>
           <span :class="['badge', client.type === 'government' ? 'badge-blue' : client.type === 'enterprise' ? 'badge-green' : 'badge-amber']">{{ typeLabel[client.type] }}</span>
@@ -907,6 +912,31 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.back-row {
+  margin-bottom: 14px;
+}
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-light, #e2e8f0);
+  border-radius: 8px;
+  background: var(--bg-card, #fff);
+  color: var(--text-secondary, #475569);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.back-btn:hover {
+  background: var(--bg, #f1f5f9);
+  color: var(--text, #1e293b);
+  border-color: var(--border, #cbd5e1);
+}
+.back-btn svg {
+  flex-shrink: 0;
+}
 .header-left {
   display: flex;
   flex-direction: column;
