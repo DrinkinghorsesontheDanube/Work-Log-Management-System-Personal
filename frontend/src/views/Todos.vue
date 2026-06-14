@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useTodosStore } from '../stores/todos'
 import { useProjectsStore } from '../stores/projects'
+import ConfirmModal from '../components/ConfirmModal.vue'
 import type { Todo } from '../types'
 
 const todosStore = useTodosStore()
@@ -15,6 +16,21 @@ const formPriority = ref<Todo['priority']>('medium')
 const formDueDate = ref('')
 const formProjectId = ref<string | null>(null)
 const filter = ref<'all' | 'pending' | 'in_progress' | 'completed'>('all')
+const confirmVisible = ref(false)
+const confirmTitle = ref('')
+const confirmMessage = ref('')
+const confirmDanger = ref(false)
+let confirmResolve: ((v: boolean) => void) | null = null
+
+function showConfirm(title: string, message: string, danger = false): Promise<boolean> {
+  confirmTitle.value = title
+  confirmMessage.value = message
+  confirmDanger.value = danger
+  confirmVisible.value = true
+  return new Promise(resolve => { confirmResolve = resolve })
+}
+function onConfirmOk() { confirmVisible.value = false; confirmResolve?.(true) }
+function onConfirmCancel() { confirmVisible.value = false; confirmResolve?.(false) }
 
 const priorityOptions = [
   { label: '紧急', value: 'high' },
@@ -96,7 +112,10 @@ function toggleStatus(todo: Todo) {
 }
 
 function remove(id: string) {
-  todosStore.deleteTodo(id)
+  const todo = todosStore.todos.find(t => t.id === id)
+  showConfirm(`删除「${todo?.title || '该待办'}」`, '此操作不可撤销', true).then(ok => {
+    if (ok) todosStore.deleteTodo(id)
+  })
 }
 
 function statusLabel(s: string) {
@@ -212,8 +231,17 @@ onMounted(() => {
           <button class="btn btn-primary" @click="save">保存</button>
         </div>
       </div>
-    </div>
   </div>
+
+  <ConfirmModal
+    :visible="confirmVisible"
+    :title="confirmTitle"
+    :message="confirmMessage"
+    :danger="confirmDanger"
+    @confirm="onConfirmOk"
+    @cancel="onConfirmCancel"
+  />
+</div>
 </template>
 
 <style scoped>

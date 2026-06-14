@@ -5,6 +5,7 @@ import { useProjectsStore } from '../stores/projects'
 import { useClientsStore } from '../stores/clients'
 import { useTodosStore } from '../stores/todos'
 import { useWorkLogsStore } from '../stores/workLogs'
+import ConfirmModal from '../components/ConfirmModal.vue'
 import type { Project } from '../types'
 
 const router = useRouter()
@@ -14,6 +15,21 @@ const todosStore = useTodosStore()
 const workLogsStore = useWorkLogsStore()
 
 const showModal = ref(false)
+const confirmVisible = ref(false)
+const confirmTitle = ref('')
+const confirmMessage = ref('')
+const confirmDanger = ref(false)
+let confirmResolve: ((v: boolean) => void) | null = null
+
+function showConfirm(title: string, message: string, danger = false): Promise<boolean> {
+  confirmTitle.value = title
+  confirmMessage.value = message
+  confirmDanger.value = danger
+  confirmVisible.value = true
+  return new Promise(resolve => { confirmResolve = resolve })
+}
+function onConfirmOk() { confirmVisible.value = false; confirmResolve?.(true) }
+function onConfirmCancel() { confirmVisible.value = false; confirmResolve?.(false) }
 const editingProject = ref<Project | null>(null)
 const formName = ref('')
 const formDesc = ref('')
@@ -200,9 +216,10 @@ function save() {
 }
 
 function remove(id: string) {
-  if (confirm('确定要删除这个项目吗？')) {
-    projectsStore.deleteProject(id)
-  }
+  const project = projectsStore.projects.find(p => p.id === id)
+  showConfirm(`删除「${project?.name}」`, '项目及关联数据将被删除，此操作不可撤销', true).then(ok => {
+    if (ok) projectsStore.deleteProject(id)
+  })
 }
 
 onMounted(() => {
@@ -454,8 +471,17 @@ onMounted(() => {
           <button class="btn btn-primary" @click="save">保存</button>
         </div>
       </div>
-    </div>
   </div>
+
+  <ConfirmModal
+    :visible="confirmVisible"
+    :title="confirmTitle"
+    :message="confirmMessage"
+    :danger="confirmDanger"
+    @confirm="onConfirmOk"
+    @cancel="onConfirmCancel"
+  />
+</div>
 </template>
 
 <style scoped>

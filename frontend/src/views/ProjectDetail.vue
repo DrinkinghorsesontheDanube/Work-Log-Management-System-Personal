@@ -47,6 +47,11 @@ const planIncludeHolidays = ref(false)
 const aiGenerating = ref(false)
 const aiPreviewTasks = ref<PlanTask[]>([])
 const showAiPreview = ref(false)
+const confirmVisible = ref(false)
+const confirmTitle = ref('')
+const confirmMessage = ref('')
+const confirmDanger = ref(false)
+const pendingDeleteId = ref<string | null>(null)
 
 const projectPlanTasks = computed(() => {
   const all = planTasks.value.filter(t => t.projectId === project.value?.id)
@@ -195,6 +200,15 @@ function loadPlanTasks() {
     planTasks.value = [...planTasks.value, ...autoTasks]
     storage.savePlanTasks(planTasks.value)
   }
+  recalcAllParentTasks()
+}
+
+function recalcAllParentTasks() {
+  const parentIds = [...new Set(planTasks.value.filter(t => t.parentId).map(t => t.parentId))]
+  for (const pid of parentIds) {
+    recalcParentProgress(pid)
+  }
+  storage.savePlanTasks(planTasks.value)
 }
 
 function openAddPlan(parentId: string | null = null) {
@@ -284,7 +298,8 @@ function savePlan() {
       updatedAt: now
     })
   }
-  recalcParentProgress(editingPlan.value?.parentId || planParentId.value)
+  const parentId = editingPlan.value?.parentId ?? planParentId.value
+  recalcParentProgress(parentId)
   storage.savePlanTasks(planTasks.value)
   showPlanModal.value = false
 }
@@ -295,27 +310,28 @@ function recalcParentProgress(parentId: string | null | undefined) {
   if (children.length === 0) return
   const avgProgress = Math.round(children.reduce((sum, c) => sum + c.progress, 0) / children.length)
   const idx = planTasks.value.findIndex(t => t.id === parentId)
-  if (idx !== -1) {
-    let status: PlanTask['status'] = 'pending'
-    if (avgProgress === 100) status = 'completed'
-    else if (avgProgress > 0) status = 'in_progress'
-    planTasks.value[idx] = { ...planTasks.value[idx], progress: avgProgress, status, updatedAt: new Date().toISOString() }
-  }
-  recalcParentActualDates(parentId)
-}
-
-function recalcParentActualDates(parentId: string | null | undefined) {
-  if (!parentId) return
-  const children = planTasks.value.filter(t => t.parentId === parentId)
-  if (children.length === 0) return
-  const starts = children.map(c => c.actualStartDate).filter(Boolean) as string[]
-  const ends = children.map(c => c.actualEndDate).filter(Boolean) as string[]
-  const idx = planTasks.value.findIndex(t => t.id === parentId)
   if (idx === -1) return
-  const parent = planTasks.value[idx]
-  const actualStart = starts.length > 0 ? starts.sort()[0] : parent.actualStartDate
-  const actualEnd = ends.length > 0 ? ends.sort().reverse()[0] : parent.actualEndDate
-  planTasks.value[idx] = { ...parent, actualStartDate: actualStart, actualEndDate: actualEnd, updatedAt: new Date().toISOString() }
+  let status: PlanTask['status'] = 'pending'
+  if (avgProgress === 100) status = 'completed'
+  else if (avgProgress > 0) status = 'in_progress'
+  const starts = children.map(c => c.actualStartDate).filter(Boolean).sort() as string[]
+  const ends = children.map(c => c.actualEndDate).filter(Boolean).sort() as string[]
+  const actualStart = starts.length > 0 ? starts[0] : planTasks.value[idx].actualStartDate
+  const allDone = children.every(c => c.status === 'completed')
+  const anyStarted = children.some(c => c.status !== 'pending')
+  const actualEnd = allDone && ends.length > 0 ? ends[ends.length - 1] : null
+  if (allDone) status = 'completed'
+  else if (anyStarted) status = 'in_progress'
+  planTasks.value[idx] = {
+    ...planTasks.value[idx],
+    progress: avgProgress,
+    status,
+    actualStartDate: actualStart,
+    actualEndDate: actualEnd,
+    updatedAt: new Date().toISOString()
+  }
+  const grandParent = planTasks.value[idx].parentId
+  if (grandParent) recalcParentProgress(grandParent)
 }
 
 function onStartDateChange() {
@@ -343,9 +359,27 @@ function onIncludeHolidaysChange() {
 }
 
 function deletePlan(id: string) {
-  planTasks.value = planTasks.value.filter(t => t.id !== id && t.parentId !== id)
-  storage.savePlanTasks(planTasks.value)
+  try {
+    const task = planTasks.value.find(t => t.id === id)
+    const hasChildren = planTasks.value.some(t => t.parentId === id)
+    const msg = hasChildren ? `将同时删除其所有子任务，此操作不可撤销` : `此操作不可撤销`
+    pendingDeleteId.value = id
+    confirmTitle.value = `删除「${task?.name}」`
+    confirmMessage.value = msg
+    confirmDanger.value = true
+    confirmVisible.value = true
+  } catch (e) { console.error('[deletePlan]', e) }
 }
+
+function onConfirmOk() {
+  confirmVisible.value = false
+  if (pendingDeleteId.value) {
+    planTasks.value = planTasks.value.filter(t => t.id !== pendingDeleteId.value && t.parentId !== pendingDeleteId.value)
+    storage.savePlanTasks(planTasks.value)
+    pendingDeleteId.value = null
+  }
+}
+function onConfirmCancel() { confirmVisible.value = false; pendingDeleteId.value = null }
 
 async function aiGeneratePlan() {
   if (!project.value || !isAiConfigured()) { alert('请先在设置中配置 AI'); return }
@@ -600,8 +634,8 @@ onMounted(() => {
                   <button v-if="task.parentId === null" class="btn-icon" @click.stop="openAddPlan(task.id)" title="添加子任务">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   </button>
-                  <button class="btn-icon" @click.stop="deletePlan(task.id)" title="删除">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  <button class="btn-icon" @click.stop="deletePlan(task.id)" title="删除" style="z-index:10;position:relative">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                 </div>
                 <div class="plan-row-bottom">
@@ -750,11 +784,9 @@ onMounted(() => {
               <input v-model="planEnd" type="date" class="input" @change="onEndDateChange" />
             </div>
           </div>
-          <div class="form-field" style="margin-bottom:10px">
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="planIncludeHolidays" @change="onIncludeHolidaysChange" />
-              <span>工期包含周末/节假日</span>
-            </label>
+          <div class="holiday-toggle">
+            <input type="checkbox" id="inclHoliday" v-model="planIncludeHolidays" @change="onIncludeHolidaysChange" />
+            <label for="inclHoliday">工期包含周末/节假日</label>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="form-field">
@@ -838,6 +870,18 @@ onMounted(() => {
       <div class="card-empty">
         <p style="margin-bottom: 14px">项目不存在</p>
         <button class="btn" @click="router.push('/projects')">返回项目列表</button>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="confirmVisible" class="confirm-overlay" @click.self="onConfirmCancel">
+    <div class="confirm-dialog">
+      <div class="confirm-icon-wrap danger"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+      <div class="confirm-title">{{ confirmTitle }}</div>
+      <div class="confirm-desc">{{ confirmMessage }}</div>
+      <div class="confirm-btns">
+        <button class="confirm-btn cancel" @click="onConfirmCancel">取消</button>
+        <button class="confirm-btn danger" @click="onConfirmOk">删除</button>
       </div>
     </div>
   </div>
@@ -948,7 +992,37 @@ onMounted(() => {
   font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; letter-spacing: 0.3px;
 }
 .plan-tag.plan { color: var(--text-muted); background: var(--bg); margin-right: 0; }
-.plan-tag.actual { color: #b45309; background: #fef3c7; margin-right: 0; margin-left: 28px; }
+.plan-tag.actual { color: #b45309; background: transparent; margin-right: 0; margin-left: 28px; }
+
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 99999;
+  background: rgba(15, 23, 42, 0.25);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+}
+.confirm-dialog {
+  background: #fff; border-radius: 16px;
+  padding: 32px 32px 24px; width: 380px; max-width: 90vw;
+  box-shadow: 0 24px 48px -12px rgba(0,0,0,0.18);
+  text-align: center;
+}
+.confirm-icon-wrap {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-bottom: 16px; background: #eef2ff; color: #6366f1;
+}
+.confirm-icon-wrap.danger { background: #fef2f2; color: #ef4444; }
+.confirm-title { font-size: 17px; font-weight: 600; color: #0f172a; margin-bottom: 6px; }
+.confirm-desc { font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 24px; }
+.confirm-btns { display: flex; gap: 10px; }
+.confirm-btn {
+  flex: 1; padding: 10px 0; border-radius: 10px;
+  font-size: 14px; font-weight: 500; cursor: pointer; border: none;
+}
+.confirm-btn.cancel { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.confirm-btn.cancel:hover { background: #e2e8f0; }
+.confirm-btn.danger { background: #ef4444; color: #fff; }
+.confirm-btn.danger:hover { background: #dc2626; }
 .plan-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .plan-dot.pending { background: #94a3b8; }
 .plan-dot.in_progress { background: #22c55e; }
@@ -1016,8 +1090,9 @@ onMounted(() => {
 .linked-empty { font-size: 12px; color: var(--text-muted); padding: 6px 0; }
 .linked-add { display: flex; gap: 6px; }
 .linked-add .input { flex: 1; font-size: 12px; padding: 5px 8px; }
-.checkbox-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); cursor: pointer; }
-.checkbox-label input[type="checkbox"] { accent-color: var(--primary); }
+.holiday-toggle { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
+.holiday-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); margin: 0; cursor: pointer; }
+.holiday-toggle label { font-size: 13px; color: var(--text-secondary); cursor: pointer; margin: 0; }
 .todo-task-tag {
   font-size: 10px; color: var(--primary); background: #eef2ff;
   padding: 1px 6px; border-radius: var(--radius-full); flex-shrink: 0;
