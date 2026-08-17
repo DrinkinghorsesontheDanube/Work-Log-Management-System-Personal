@@ -42,6 +42,10 @@ provide('showAiConfigPrompt', () => {
   aiPromptRef.value?.show()
 })
 
+provide('showAiSettingsModal', () => {
+  aiSettingsRef.value?.show()
+})
+
 watch(() => route.path, (path) => {
   sidebarOpen.value = false
   if (path.startsWith('/projects')) {
@@ -207,7 +211,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
             </Transition>
           </div>
           <input ref="fileInputRef" type="file" accept=".json" style="display:none" @change="importData" />
-          <span class="footer-text">v1.0.0</span>
+          <span class="footer-text">v1.1.0</span>
         </div>
       </aside>
 

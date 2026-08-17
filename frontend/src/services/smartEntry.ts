@@ -482,6 +482,16 @@ export function confirmEntry(
       projectId
     })
     result.workLogs.push(log)
+
+    if (clientId && clientsStore && l.categoryId === 'client_visit') {
+      clientsStore.addVisit({
+        clientId,
+        date: l.date,
+        content: l.content,
+        contactPersonId: '',
+        followUpResult: '已拜访'
+      })
+    }
   }
 
   for (const t of pending.todos) {

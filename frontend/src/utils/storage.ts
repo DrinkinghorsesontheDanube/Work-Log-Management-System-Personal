@@ -116,6 +116,14 @@ export const storage = {
     if (data.projectPhases) this.saveProjectPhases(data.projectPhases as ProjectPhase[])
   },
   clearAllData() {
-    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key))
+    const aiProvider = this.getAiProvider()
+    Object.values(STORAGE_KEYS).forEach(key => {
+      if (key !== STORAGE_KEYS.aiProvider) {
+        localStorage.removeItem(key)
+      }
+    })
+    if (aiProvider) {
+      this.saveAiProvider(aiProvider)
+    }
   }
 }

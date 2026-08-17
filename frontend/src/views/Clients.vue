@@ -951,6 +951,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  min-height: 28px;
 }
 .contact-entry-title {
   font-size: 13px;
@@ -960,25 +961,34 @@ onMounted(() => {
 .contact-entry-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 20px;
 }
 .primary-checkbox {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
   cursor: pointer;
   margin: 0;
-  padding: 0;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--bg-hover, #f1f5f9);
+}
+.primary-checkbox:hover {
+  background: var(--border-light, #e2e8f0);
 }
 .primary-checkbox input[type="checkbox"] {
-  width: 15px;
-  height: 15px;
+  width: 20px;
+  height: 20px;
   margin: 0;
+  padding: 0;
   accent-color: var(--primary);
   cursor: pointer;
-  flex-shrink: 0;
+  vertical-align: middle;
+}
+.primary-checkbox span {
+  vertical-align: middle;
 }
 
 .btn-sm {

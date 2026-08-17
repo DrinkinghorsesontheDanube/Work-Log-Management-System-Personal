@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, inject } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, onBeforeUnmount, computed, inject, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useProjectsStore } from '../stores/projects'
 import { useTodosStore } from '../stores/todos'
 import { useWorkLogsStore } from '../stores/workLogs'
@@ -11,6 +11,7 @@ import { WORK_CATEGORIES } from '../types'
 import { isAiConfigured } from '../services/aiService'
 
 const router = useRouter()
+const route = useRoute()
 const projectsStore = useProjectsStore()
 const todosStore = useTodosStore()
 const workLogsStore = useWorkLogsStore()
@@ -21,6 +22,11 @@ const aiInput = ref('')
 const pending = ref<PendingEntry | null>(null)
 const confirmed = ref(false)
 const statusMsg = ref('')
+const aiConfigured = ref(isAiConfigured())
+
+function refreshAiStatus() {
+  aiConfigured.value = isAiConfigured()
+}
 
 const todayStr = new Date().toISOString().split('T')[0]
 const todayFormatted = new Date().toLocaleDateString('zh-CN', {
@@ -149,7 +155,10 @@ async function handleAnalyze() {
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAnalyze() }
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault()
+    handleAnalyze()
+  }
 }
 
 function handleConfirm() {
@@ -182,6 +191,16 @@ onMounted(() => {
   todosStore.loadTodos()
   workLogsStore.loadWorkLogs()
   clientsStore.loadClients()
+  refreshAiStatus()
+  window.addEventListener('ai-config-changed', refreshAiStatus)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('ai-config-changed', refreshAiStatus)
+})
+
+watch(() => route.path, () => {
+  refreshAiStatus()
 })
 </script>
 
@@ -220,9 +239,9 @@ onMounted(() => {
         <div class="input-wrap">
           <textarea
             v-model="aiInput"
-            placeholder="记录今天的工作内容，系统会自动识别项目、客户、日志和待办...&#10;例如：今天去了市大数据局汇报智慧城市项目方案，明天跟进预算确认"
+            placeholder="记录今天的工作内容，系统会自动识别项目、客户、日志和待办...&#10;例如：今天去了市大数据局汇报智慧城市项目方案，明天跟进预算确认&#10;按 Ctrl+Enter 开始分析"
             class="smart-input"
-            rows="2"
+            rows="3"
             @keydown="handleKeydown"
           ></textarea>
           <button v-if="aiInput" class="clear-btn" @click="aiInput = ''; pending = null" title="清空">
@@ -231,8 +250,8 @@ onMounted(() => {
         </div>
         <div class="input-actions">
           <span class="input-hint">
-            <template v-if="isAiConfigured()">Enter 分析 · AI 智能识别</template>
-            <template v-else>Enter 分析 · 本地识别 <a class="ai-link" @click.stop="showAiConfigPrompt()">开启 AI 增强</a></template>
+            <template v-if="aiConfigured">Ctrl+Enter 分析 · AI 智能识别</template>
+            <template v-else>Ctrl+Enter 分析 · 本地识别 <a class="ai-link" @click.stop="showAiConfigPrompt()">开启 AI 增强</a></template>
           </span>
           <button class="btn btn-primary btn-sm" :disabled="!aiInput.trim() || aiAnalyzing" @click="handleAnalyze">
             <span v-if="aiAnalyzing" class="btn-spinner"></span>
@@ -452,7 +471,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.dashboard { display: flex; flex-wrap: wrap; gap: 20px; width: 100%; min-height: 100%; }
+.dashboard { display: flex; flex-wrap: wrap; gap: 20px; width: 100%; min-height: 100%; align-content: flex-start; }
 .dashboard :deep(.page-header) { margin-bottom: 12px; }
 .dashboard :deep(.page-title) { font-size: 18px; }
 .dashboard :deep(.page-subtitle) { margin-top: 2px; }

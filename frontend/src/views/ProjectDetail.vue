@@ -245,38 +245,33 @@ const deadlineWarnings = computed(() => {
 
 function loadPlanTasks() {
   planTasks.value = storage.getPlanTasks()
-  if (project.value && !planTasks.value.some(t => t.projectId === project.value!.id)) {
-    const now = new Date()
-    const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r }
-    const base = project.value.startDate ? new Date(project.value.startDate + 'T00:00:00') : now
-    const defaults = [
-      { name: '需求调研与分析', offset: 0, span: 20, progress: 100, status: 'completed' as const },
-      { name: '方案设计与评审', offset: 15, span: 25, progress: 80, status: 'in_progress' as const },
-      { name: '招投标工作', offset: 30, span: 30, progress: 40, status: 'in_progress' as const },
-      { name: '项目实施与开发', offset: 50, span: 60, progress: 0, status: 'pending' as const },
-      { name: '测试与验收', offset: 100, span: 20, progress: 0, status: 'pending' as const },
-      { name: '运维与交付', offset: 115, span: 15, progress: 0, status: 'pending' as const }
-    ]
-    const autoTasks: PlanTask[] = defaults.map((d, i) => ({
-      id: 'plan_auto_' + project.value!.id + '_' + i,
-      projectId: project.value!.id,
-      parentId: null,
-      name: d.name,
-      startDate: fmt(addDays(base, d.offset)),
-      endDate: fmt(addDays(base, d.offset + d.span)),
-      duration: d.span,
-      includeHolidays: false,
-      actualStartDate: null,
-      actualEndDate: null,
-      progress: d.progress,
-      status: d.status,
-      order: i,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString()
-    }))
-    planTasks.value = [...planTasks.value, ...autoTasks]
-    storage.savePlanTasks(planTasks.value)
+  if (project.value) {
+    const hasPhaseTasks = planTasks.value.some(
+      t => t.projectId === project.value!.id && t.id.startsWith('phase_')
+    )
+    if (!hasPhaseTasks) {
+      const now = new Date()
+      const sortedPhases = [...projectsStore.phases].sort((a, b) => a.order - b.order)
+      const phaseTasks: PlanTask[] = sortedPhases.map((phase, i) => ({
+        id: `phase_${project.value!.id}_${phase.id}`,
+        projectId: project.value!.id,
+        parentId: null,
+        name: phase.name,
+        startDate: project.value!.startDate || now.toISOString().split('T')[0],
+        endDate: '',
+        duration: 0,
+        includeHolidays: false,
+        actualStartDate: null,
+        actualEndDate: null,
+        progress: 0,
+        status: i === 0 ? 'in_progress' as const : 'pending' as const,
+        order: phase.order,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString()
+      }))
+      planTasks.value = [...planTasks.value, ...phaseTasks]
+      storage.savePlanTasks(planTasks.value)
+    }
   }
   recalcAllParentTasks()
 }

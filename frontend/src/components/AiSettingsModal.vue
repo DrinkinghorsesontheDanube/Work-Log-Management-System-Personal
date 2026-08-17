@@ -94,6 +94,7 @@ function saveAiConfig() {
   refreshAiStatus()
   saved.value = true
   testResult.value = null
+  window.dispatchEvent(new CustomEvent('ai-config-changed'))
   setTimeout(() => { saved.value = false }, 2000)
 }
 

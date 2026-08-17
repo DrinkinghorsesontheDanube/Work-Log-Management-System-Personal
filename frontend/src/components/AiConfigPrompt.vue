@@ -12,15 +12,15 @@
             </svg>
           </div>
           <h3 class="ai-prompt-title">需要配置 AI 服务</h3>
-          <p class="ai-prompt-desc">此功能需要调用 AI 大模型，请先在设置中配置 API 密钥后使用。</p>
+          <p class="ai-prompt-desc">此功能需要调用 AI 大模型，请先配置 API 密钥后使用。</p>
           <div class="ai-prompt-steps">
             <div class="ai-step">
               <span class="ai-step-num">1</span>
-              <span>进入「设置」页面</span>
+              <span>选择 AI 供应商</span>
             </div>
             <div class="ai-step">
               <span class="ai-step-num">2</span>
-              <span>选择 AI 供应商并填入 API Key</span>
+              <span>填入 API Key</span>
             </div>
             <div class="ai-step">
               <span class="ai-step-num">3</span>
@@ -29,7 +29,7 @@
           </div>
           <div class="ai-prompt-actions">
             <button class="ai-prompt-btn secondary" @click="close">稍后再说</button>
-            <button class="ai-prompt-btn primary" @click="goToSettings">前往设置</button>
+            <button class="ai-prompt-btn primary" @click="openAiSettings">前往配置</button>
           </div>
         </div>
       </div>
@@ -38,11 +38,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, inject } from 'vue'
 
 const visible = ref(false)
-const router = useRouter()
+const showAiSettingsModal = inject<() => void>('showAiSettingsModal', () => {})
 
 function show() {
   visible.value = true
@@ -52,9 +51,9 @@ function close() {
   visible.value = false
 }
 
-function goToSettings() {
+function openAiSettings() {
   close()
-  router.push('/settings')
+  showAiSettingsModal()
 }
 
 defineExpose({ show })

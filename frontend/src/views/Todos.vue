@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, inject } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useTodosStore } from '../stores/todos'
 import { useProjectsStore } from '../stores/projects'
 import ConfirmModal from '../components/ConfirmModal.vue'
@@ -8,7 +8,6 @@ import { TODO_CATEGORIES } from '../types'
 
 const todosStore = useTodosStore()
 const projectsStore = useProjectsStore()
-const showAiConfigPrompt = inject<() => void>('showAiConfigPrompt', () => {})
 
 const searchQuery = ref('')
 const filterPriority = ref<'all' | 'high' | 'medium' | 'low'>('all')
@@ -121,6 +120,12 @@ const filteredTodos = computed(() => {
 const pendingColumn = computed(() => filteredTodos.value.filter(t => t.status === 'pending'))
 const inProgressColumn = computed(() => filteredTodos.value.filter(t => t.status === 'in_progress'))
 const completedColumn = computed(() => filteredTodos.value.filter(t => t.status === 'completed'))
+
+const boardColumns = computed(() => [
+  { key: 'pending', label: '待处理', color: '#f59e0b', emptyIcon: '🎉', emptyText: '暂无待处理', items: pendingColumn.value },
+  { key: 'in_progress', label: '进行中', color: '#3b82f6', emptyIcon: '🚀', emptyText: '暂无进行中', items: inProgressColumn.value },
+  { key: 'completed', label: '已完成', color: '#10b981', emptyIcon: '✨', emptyText: '暂无已完成', items: completedColumn.value }
+])
 
 function cycleStatus(todo: Todo) {
   const next: Record<string, Todo['status']> = {
@@ -277,52 +282,89 @@ onMounted(() => {
         <h1 class="page-title">待办事项</h1>
         <p class="page-subtitle">管理你的任务和待办事项</p>
       </div>
+      <button class="btn btn-primary" @click="openAdd">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新建待办
+      </button>
     </div>
 
     <div class="stats-bar">
-      <div class="stat-item">
-        <span class="stat-val">{{ stats.total }}</span>
-        <span class="stat-lbl">全部</span>
-      </div>
-      <div class="stat-item stat-rate">
-        <div class="rate-info">
-          <span class="stat-val">{{ stats.rate }}%</span>
-          <span class="stat-lbl">完成率</span>
-        </div>
-        <div class="rate-bar">
-          <div class="rate-fill" :style="{ width: stats.rate + '%' }"></div>
+      <div class="stat-card">
+        <span class="stat-icon stat-teal">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        </span>
+        <div class="stat-info">
+          <span class="stat-num">{{ stats.total }}</span>
+          <span class="stat-label">全部待办</span>
         </div>
       </div>
-      <div class="stat-item stat-overdue">
-        <span class="stat-val stat-val-rose">{{ stats.overdue }}</span>
-        <span class="stat-lbl">逾期</span>
+      <div class="stat-card">
+        <span class="stat-icon stat-green">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+        </span>
+        <div class="stat-info">
+          <span class="stat-num">{{ stats.rate }}<span class="stat-unit">%</span></span>
+          <span class="stat-label">完成率</span>
+          <div class="mini-progress"><div class="mini-fill" :style="{ width: stats.rate + '%' }"></div></div>
+        </div>
       </div>
-      <div class="stat-item">
-        <span class="stat-val">{{ stats.today }}</span>
-        <span class="stat-lbl">今日</span>
+      <div class="stat-card">
+        <span class="stat-icon stat-rose">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </span>
+        <div class="stat-info">
+          <span class="stat-num">{{ stats.overdue }}</span>
+          <span class="stat-label">已逾期</span>
+        </div>
       </div>
-      <div class="stat-item">
-        <span class="stat-val">{{ stats.week }}</span>
-        <span class="stat-lbl">本周</span>
+      <div class="stat-card">
+        <span class="stat-icon stat-blue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>
+        </span>
+        <div class="stat-info">
+          <span class="stat-num">{{ stats.today }}</span>
+          <span class="stat-label">今日待办</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon stat-amber">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </span>
+        <div class="stat-info">
+          <span class="stat-num">{{ stats.week }}</span>
+          <span class="stat-label">本周待办</span>
+        </div>
       </div>
     </div>
 
-    <div class="quick-add card">
+    <div class="quick-add">
+      <span class="quick-plus">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </span>
       <input
         v-model="quickTitle"
         class="quick-input"
-        placeholder="快速添加待办，输入标题后按 Enter..."
+        placeholder="快速添加待办，输入标题后按 Enter 添加..."
         @keydown.enter="handleQuickAdd"
       />
-      <select v-model="quickCategory" class="quick-select">
-        <option v-for="cat in TODO_CATEGORIES" :key="cat.id" :value="cat.id">{{ cat.icon }} {{ cat.name }}</option>
-      </select>
-      <button class="btn btn-primary btn-sm" @click="handleQuickAdd" :disabled="!quickTitle.trim()">添加</button>
+      <div class="quick-select-wrap">
+        <select v-model="quickCategory" class="quick-select">
+          <option v-for="cat in TODO_CATEGORIES" :key="cat.id" :value="cat.id">{{ cat.icon }} {{ cat.name }}</option>
+        </select>
+        <svg class="select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <button class="btn btn-primary btn-sm" @click="handleQuickAdd" :disabled="!quickTitle.trim()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        添加
+      </button>
     </div>
 
-    <div class="toolbar card">
+    <div class="toolbar">
       <div class="toolbar-left">
-        <input v-model="searchQuery" class="input search-input" placeholder="搜索待办标题、描述、项目..." />
+        <div class="search-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input v-model="searchQuery" class="input search-input" placeholder="搜索标题、描述、项目..." />
+        </div>
         <div class="pill-group">
           <button :class="['pill', { active: filterPriority === 'all' }]" @click="filterPriority = 'all'">全部</button>
           <button :class="['pill', { active: filterPriority === 'high' }]" @click="filterPriority = 'high'">
@@ -357,156 +399,69 @@ onMounted(() => {
         <button :class="['btn btn-sm', batchMode ? 'btn-primary' : '']" @click="toggleBatchMode">
           {{ batchMode ? '退出批量' : '批量操作' }}
         </button>
-        <button class="btn btn-primary btn-sm" @click="openAdd">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          新建
-        </button>
       </div>
     </div>
 
     <template v-if="viewMode === 'board'">
       <div v-if="filteredTodos.length === 0" class="card empty-card">
         <div class="empty-state">
-          <span class="empty-emoji">📋</span>
+          <div class="empty-icon">📋</div>
           <p class="empty-text">暂无待办事项</p>
-          <p class="empty-hint">点击「新建」或使用快速添加创建第一个待办</p>
+          <p class="empty-hint">点击「新建待办」或使用上方快速添加创建第一个待办</p>
         </div>
       </div>
       <div v-else class="board">
-        <div class="board-col">
+        <div v-for="col in boardColumns" :key="col.key" class="board-col">
           <div class="col-header">
-            <span class="col-dot" style="background:#f59e0b"></span>
-            <span class="col-title">待处理</span>
-            <span class="col-count">{{ pendingColumn.length }}</span>
+            <span class="col-dot" :style="{ background: col.color }"></span>
+            <span class="col-title">{{ col.label }}</span>
+            <span class="col-count">{{ col.items.length }}</span>
           </div>
-          <div v-if="pendingColumn.length === 0" class="col-empty">
-            <span class="empty-emoji-sm">🎉</span>
-            <span class="col-empty-text">暂无待处理</span>
-          </div>
-          <div
-            v-for="todo in pendingColumn"
-            :key="todo.id"
-            :class="['todo-card', { selected: batchMode && isSelected(todo.id), overdue: isOverdue(todo) }]"
-            @click="batchMode ? toggleSelect(todo.id) : openEdit(todo)"
-          >
-            <div class="card-top-row">
-              <input
-                v-if="batchMode"
-                type="checkbox"
-                :checked="isSelected(todo.id)"
-                @click.stop="toggleSelect(todo.id)"
-                class="batch-check"
-              />
-              <button class="status-dot" :class="todo.status" @click.stop="cycleStatus(todo)" :title="statusConfig[todo.status].label"></button>
-              <span class="card-title" :class="{ 'title-done': todo.status === 'completed' }">{{ todo.title }}</span>
-              <button class="card-delete" @click.stop="removeTodo(todo.id)" title="删除">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              </button>
+          <div class="col-body">
+            <div v-if="col.items.length === 0" class="col-empty">
+              <span class="col-empty-icon">{{ col.emptyIcon }}</span>
+              <span class="col-empty-text">{{ col.emptyText }}</span>
             </div>
-            <div class="card-meta">
-              <span class="meta-tag pri-tag" :style="{ color: priorityConfig[todo.priority].color, background: priorityConfig[todo.priority].bg }">
-                <span class="tag-dot" :style="{ background: priorityConfig[todo.priority].color }"></span>
-                {{ priorityConfig[todo.priority].label }}
-              </span>
-              <span class="meta-tag cat-tag" :style="{ color: getCategoryInfo(todo.category).color, background: getCategoryInfo(todo.category).color + '18' }">
-                {{ getCategoryInfo(todo.category).icon }} {{ getCategoryInfo(todo.category).name }}
-              </span>
-              <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag">📁 {{ getProjectName(todo.projectId) }}</span>
-              <span v-if="todo.dueDate" :class="['meta-tag due-tag', { 'due-overdue': isOverdue(todo) }]">
-                📅 {{ formatDueDate(todo.dueDate) }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div class="board-col">
-          <div class="col-header">
-            <span class="col-dot" style="background:#3b82f6"></span>
-            <span class="col-title">进行中</span>
-            <span class="col-count">{{ inProgressColumn.length }}</span>
-          </div>
-          <div v-if="inProgressColumn.length === 0" class="col-empty">
-            <span class="empty-emoji-sm">🚀</span>
-            <span class="col-empty-text">暂无进行中</span>
-          </div>
-          <div
-            v-for="todo in inProgressColumn"
-            :key="todo.id"
-            :class="['todo-card', { selected: batchMode && isSelected(todo.id), overdue: isOverdue(todo) }]"
-            @click="batchMode ? toggleSelect(todo.id) : openEdit(todo)"
-          >
-            <div class="card-top-row">
-              <input
-                v-if="batchMode"
-                type="checkbox"
-                :checked="isSelected(todo.id)"
-                @click.stop="toggleSelect(todo.id)"
-                class="batch-check"
-              />
-              <button class="status-dot" :class="todo.status" @click.stop="cycleStatus(todo)" :title="statusConfig[todo.status].label"></button>
-              <span class="card-title" :class="{ 'title-done': todo.status === 'completed' }">{{ todo.title }}</span>
-              <button class="card-delete" @click.stop="removeTodo(todo.id)" title="删除">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              </button>
-            </div>
-            <div class="card-meta">
-              <span class="meta-tag pri-tag" :style="{ color: priorityConfig[todo.priority].color, background: priorityConfig[todo.priority].bg }">
-                <span class="tag-dot" :style="{ background: priorityConfig[todo.priority].color }"></span>
-                {{ priorityConfig[todo.priority].label }}
-              </span>
-              <span class="meta-tag cat-tag" :style="{ color: getCategoryInfo(todo.category).color, background: getCategoryInfo(todo.category).color + '18' }">
-                {{ getCategoryInfo(todo.category).icon }} {{ getCategoryInfo(todo.category).name }}
-              </span>
-              <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag">📁 {{ getProjectName(todo.projectId) }}</span>
-              <span v-if="todo.dueDate" :class="['meta-tag due-tag', { 'due-overdue': isOverdue(todo) }]">
-                📅 {{ formatDueDate(todo.dueDate) }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div class="board-col">
-          <div class="col-header">
-            <span class="col-dot" style="background:#10b981"></span>
-            <span class="col-title">已完成</span>
-            <span class="col-count">{{ completedColumn.length }}</span>
-          </div>
-          <div v-if="completedColumn.length === 0" class="col-empty">
-            <span class="empty-emoji-sm">✨</span>
-            <span class="col-empty-text">暂无已完成</span>
-          </div>
-          <div
-            v-for="todo in completedColumn"
-            :key="todo.id"
-            :class="['todo-card', { selected: batchMode && isSelected(todo.id) }]"
-            @click="batchMode ? toggleSelect(todo.id) : openEdit(todo)"
-          >
-            <div class="card-top-row">
-              <input
-                v-if="batchMode"
-                type="checkbox"
-                :checked="isSelected(todo.id)"
-                @click.stop="toggleSelect(todo.id)"
-                class="batch-check"
-              />
-              <button class="status-dot" :class="todo.status" @click.stop="cycleStatus(todo)" :title="statusConfig[todo.status].label"></button>
-              <span class="card-title" :class="{ 'title-done': todo.status === 'completed' }">{{ todo.title }}</span>
-              <button class="card-delete" @click.stop="removeTodo(todo.id)" title="删除">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-              </button>
-            </div>
-            <div class="card-meta">
-              <span class="meta-tag pri-tag" :style="{ color: priorityConfig[todo.priority].color, background: priorityConfig[todo.priority].bg }">
-                <span class="tag-dot" :style="{ background: priorityConfig[todo.priority].color }"></span>
-                {{ priorityConfig[todo.priority].label }}
-              </span>
-              <span class="meta-tag cat-tag" :style="{ color: getCategoryInfo(todo.category).color, background: getCategoryInfo(todo.category).color + '18' }">
-                {{ getCategoryInfo(todo.category).icon }} {{ getCategoryInfo(todo.category).name }}
-              </span>
-              <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag">📁 {{ getProjectName(todo.projectId) }}</span>
-              <span v-if="todo.dueDate" :class="['meta-tag due-tag', { 'due-overdue': isOverdue(todo) }]">
-                📅 {{ formatDueDate(todo.dueDate) }}
-              </span>
+            <div
+              v-for="todo in col.items"
+              :key="todo.id"
+              :class="['todo-card', todo.status, {
+                selected: batchMode && isSelected(todo.id),
+                overdue: isOverdue(todo)
+              }]"
+              @click="batchMode ? toggleSelect(todo.id) : openEdit(todo)"
+            >
+              <div class="card-top-row">
+                <input
+                  v-if="batchMode"
+                  type="checkbox"
+                  :checked="isSelected(todo.id)"
+                  @click.stop="toggleSelect(todo.id)"
+                  class="batch-check"
+                />
+                <button class="status-btn" :class="todo.status" @click.stop="cycleStatus(todo)" :title="statusConfig[todo.status].label">
+                  <svg v-if="todo.status === 'completed'" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg v-else-if="todo.status === 'in_progress'" width="8" height="8" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+                </button>
+                <span class="card-title" :class="{ 'title-done': todo.status === 'completed' }">{{ todo.title }}</span>
+                <button class="card-delete" @click.stop="removeTodo(todo.id)" title="删除">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+              <p v-if="todo.description" class="card-desc">{{ todo.description }}</p>
+              <div class="card-meta">
+                <span class="meta-tag pri-tag" :style="{ color: priorityConfig[todo.priority].color, background: priorityConfig[todo.priority].bg }">
+                  <span class="tag-dot" :style="{ background: priorityConfig[todo.priority].color }"></span>
+                  {{ priorityConfig[todo.priority].label }}
+                </span>
+                <span class="meta-tag cat-tag" :style="{ color: getCategoryInfo(todo.category).color, background: getCategoryInfo(todo.category).color + '18' }">
+                  {{ getCategoryInfo(todo.category).icon }} {{ getCategoryInfo(todo.category).name }}
+                </span>
+                <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag">📁 {{ getProjectName(todo.projectId) }}</span>
+                <span v-if="todo.dueDate" :class="['meta-tag due-tag', { 'due-overdue': isOverdue(todo) }]">
+                  📅 {{ isOverdue(todo) ? '已逾期 · ' : '' }}{{ formatDueDate(todo.dueDate) }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -516,17 +471,17 @@ onMounted(() => {
     <template v-else>
       <div v-if="filteredTodos.length === 0" class="card empty-card">
         <div class="empty-state">
-          <span class="empty-emoji">📋</span>
+          <div class="empty-icon">📋</div>
           <p class="empty-text">暂无待办事项</p>
-          <p class="empty-hint">点击「新建」或使用快速添加创建第一个待办</p>
+          <p class="empty-hint">点击「新建待办」或使用上方快速添加创建第一个待办</p>
         </div>
       </div>
       <template v-else>
-        <div v-for="group in [
-          { key: 'pending', label: '待处理', color: '#f59e0b', items: pendingColumn },
-          { key: 'in_progress', label: '进行中', color: '#3b82f6', items: inProgressColumn },
-          { key: 'completed', label: '已完成', color: '#10b981', items: completedColumn }
-        ].filter(g => g.items.length > 0)" :key="group.key" class="list-group card">
+        <div
+          v-for="group in boardColumns.filter(g => g.items.length > 0)"
+          :key="group.key"
+          class="list-group card"
+        >
           <div class="list-group-header">
             <span class="col-dot" :style="{ background: group.color }"></span>
             <span class="list-group-title">{{ group.label }}</span>
@@ -545,8 +500,14 @@ onMounted(() => {
               @click.stop="toggleSelect(todo.id)"
               class="batch-check"
             />
-            <button class="status-dot" :class="todo.status" @click.stop="cycleStatus(todo)" :title="statusConfig[todo.status].label"></button>
-            <span class="list-title" :class="{ 'title-done': todo.status === 'completed' }">{{ todo.title }}</span>
+            <button class="status-btn" :class="todo.status" @click.stop="cycleStatus(todo)" :title="statusConfig[todo.status].label">
+              <svg v-if="todo.status === 'completed'" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg v-else-if="todo.status === 'in_progress'" width="8" height="8" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <div class="list-main">
+              <span class="list-title" :class="{ 'title-done': todo.status === 'completed' }">{{ todo.title }}</span>
+              <span v-if="todo.description" class="list-desc">{{ todo.description }}</span>
+            </div>
             <div class="list-meta">
               <span class="meta-tag pri-tag" :style="{ color: priorityConfig[todo.priority].color, background: priorityConfig[todo.priority].bg }">
                 <span class="tag-dot" :style="{ background: priorityConfig[todo.priority].color }"></span>
@@ -557,7 +518,7 @@ onMounted(() => {
               </span>
               <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag">📁 {{ getProjectName(todo.projectId) }}</span>
               <span v-if="todo.dueDate" :class="['meta-tag due-tag', { 'due-overdue': isOverdue(todo) }]">
-                📅 {{ formatDueDate(todo.dueDate) }}
+                📅 {{ isOverdue(todo) ? '已逾期 · ' : '' }}{{ formatDueDate(todo.dueDate) }}
               </span>
             </div>
             <button class="card-delete" @click.stop="removeTodo(todo.id)" title="删除">
@@ -665,66 +626,105 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* ========== 统计条 ========== */
 .stats-bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
   gap: 14px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
+  margin-bottom: 18px;
 }
-.stat-item {
-  flex: 1;
-  min-width: 90px;
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 18px 20px;
-  text-align: center;
+  padding: 14px 16px;
+  transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
 }
-.stat-rate {
-  min-width: 160px;
+.stat-card:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--primary-200);
 }
-.rate-info {
+.stat-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
-  gap: 4px;
-  margin-bottom: 8px;
+  flex-shrink: 0;
 }
-.rate-bar {
-  height: 6px;
-  background: var(--border-light);
-  border-radius: var(--radius-full);
-  overflow: hidden;
+.stat-teal { background: var(--primary-light); color: var(--primary); }
+.stat-green { background: var(--green-bg); color: var(--green); }
+.stat-rose { background: var(--rose-bg); color: var(--rose); }
+.stat-blue { background: var(--blue-bg); color: var(--blue); }
+.stat-amber { background: var(--amber-bg); color: var(--amber); }
+.stat-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
 }
-.rate-fill {
-  height: 100%;
-  background: var(--primary);
-  border-radius: var(--radius-full);
-  transition: width 0.3s ease;
-}
-.stat-val {
-  display: block;
-  font-size: 28px;
+.stat-num {
+  font-size: 24px;
   font-weight: 700;
-  color: var(--primary);
   line-height: 1;
+  color: var(--text);
 }
-.stat-val-rose {
-  color: var(--rose);
+.stat-unit {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
 }
-.stat-lbl {
-  display: block;
+.stat-label {
   font-size: 12px;
   color: var(--text-muted);
   margin-top: 4px;
 }
+.mini-progress {
+  width: 100%;
+  height: 4px;
+  background: var(--border-light);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-top: 8px;
+}
+.mini-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
 
+/* ========== 快速添加 ========== */
 .quick-add {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
+  gap: 10px;
+  padding: 10px 14px;
   margin-bottom: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-xs);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.quick-add:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.08);
+}
+.quick-plus {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--primary-light);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .quick-input {
   flex: 1;
@@ -739,25 +739,44 @@ onMounted(() => {
 .quick-input::placeholder {
   color: var(--text-placeholder);
 }
+.quick-select-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
 .quick-select {
-  padding: 4px 8px;
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 6px 28px 6px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 12px;
   font-family: var(--font);
   color: var(--text);
-  background: var(--bg-card);
+  background: var(--bg);
   outline: none;
   cursor: pointer;
+  transition: border-color 0.15s;
+}
+.quick-select:focus {
+  border-color: var(--primary);
+}
+.select-chevron {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
 }
 
+/* ========== 工具栏 ========== */
 .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 18px;
+  padding: 12px 16px;
   margin-bottom: 18px;
-  gap: 14px;
+  gap: 12px;
   flex-wrap: wrap;
   position: sticky;
   top: 0;
@@ -765,14 +784,26 @@ onMounted(() => {
 }
 .toolbar-left {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
   flex-wrap: wrap;
   flex: 1;
 }
+.search-wrap {
+  position: relative;
+  width: 230px;
+}
+.search-wrap > svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-placeholder);
+  pointer-events: none;
+}
 .search-input {
-  width: 220px;
-  padding: 7px 14px;
+  width: 100%;
+  padding: 7px 12px 7px 32px;
   font-size: 13px;
 }
 .pill-group {
@@ -841,24 +872,28 @@ onMounted(() => {
   color: #fff;
 }
 
+/* ========== 看板 ========== */
 .board {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
+  align-items: start;
 }
-.board-col.col-body {
+.board-col {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 .col-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 14px 18px;
+  padding: 12px 16px;
   background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-bottom: 1px solid var(--border-light);
 }
 .col-dot {
   width: 10px;
@@ -874,83 +909,107 @@ onMounted(() => {
 }
 .col-count {
   font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
+  font-weight: 700;
+  color: var(--text-secondary);
   background: var(--bg);
-  padding: 1px 7px;
+  padding: 2px 9px;
   border-radius: var(--radius-full);
+}
+.col-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
 }
 .col-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 24px 12px;
+  gap: 6px;
+  padding: 28px 12px;
   background: var(--bg-card);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+.col-empty-icon {
+  font-size: 22px;
 }
 .col-empty-text {
   font-size: 12px;
   color: var(--text-muted);
 }
-.empty-emoji-sm {
-  font-size: 20px;
-}
 
+/* ========== 待办卡片 ========== */
 .todo-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px 18px;
+  padding: 14px 16px;
   cursor: pointer;
-  transition: all 0.15s;
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
 }
 .todo-card:hover {
-  box-shadow: var(--shadow-sm);
-  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-200);
+  transform: translateY(-1px);
 }
 .todo-card:hover .card-delete {
   opacity: 1;
 }
 .todo-card.overdue {
   border-color: #fecaca;
+  background: linear-gradient(0deg, rgba(239, 68, 68, 0.03), rgba(239, 68, 68, 0.03)), var(--bg-card);
 }
 .todo-card.selected {
   border-color: var(--primary);
-  background: var(--primary-50, #f0fdfa);
+  background: var(--primary-50);
+}
+.todo-card.completed {
+  opacity: 0.7;
+}
+.todo-card.completed:hover {
+  opacity: 0.9;
+  transform: none;
 }
 
 .card-top-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
-.status-dot {
-  width: 12px;
-  height: 12px;
+.status-btn {
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  border: 2px solid;
-  flex-shrink: 0;
-  padding: 0;
+  border: 2px solid var(--border);
   background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   cursor: pointer;
+  flex-shrink: 0;
   transition: all 0.15s;
 }
-.status-dot.pending {
-  border-color: #f59e0b;
+.status-btn.pending {
+  border-color: var(--amber);
 }
-.status-dot.in_progress {
-  border-color: #3b82f6;
-  background: #3b82f6;
+.status-btn.in_progress {
+  border-color: var(--blue);
+  background: var(--blue);
 }
-.status-dot.completed {
-  border-color: #10b981;
-  background: #10b981;
+.status-btn.completed {
+  border-color: var(--green);
+  background: var(--green);
 }
-.status-dot:hover {
-  transform: scale(1.2);
+.status-btn:hover {
+  transform: scale(1.18);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+}
+.status-btn svg {
+  display: block;
 }
 .card-title {
   flex: 1;
@@ -965,6 +1024,16 @@ onMounted(() => {
 .title-done {
   text-decoration: line-through;
   color: var(--text-muted);
+}
+.card-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .card-delete {
   opacity: 0;
@@ -985,7 +1054,7 @@ onMounted(() => {
 
 .card-meta {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   align-items: center;
 }
@@ -1019,6 +1088,7 @@ onMounted(() => {
   font-weight: 600;
 }
 
+/* ========== 列表视图 ========== */
 .list-group {
   margin-bottom: 14px;
   overflow: hidden;
@@ -1027,7 +1097,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-light);
 }
 .list-group-title {
@@ -1039,8 +1109,8 @@ onMounted(() => {
 .list-row-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
+  gap: 12px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-light);
   cursor: pointer;
   transition: background 0.12s;
@@ -1055,20 +1125,32 @@ onMounted(() => {
   opacity: 1;
 }
 .list-row-item.selected {
-  background: var(--primary-50, #f0fdfa);
+  background: var(--primary-50);
 }
 .list-row-item.overdue {
-  background: #fff5f5;
+  background: linear-gradient(0deg, rgba(239, 68, 68, 0.04), rgba(239, 68, 68, 0.04)), var(--bg-card);
+}
+.list-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .list-title {
-  flex: 1;
   font-size: 13px;
   font-weight: 500;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
+}
+.list-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .list-meta {
   display: flex;
@@ -1078,6 +1160,7 @@ onMounted(() => {
   align-items: center;
 }
 
+/* ========== 批量操作 ========== */
 .batch-check {
   width: 15px;
   height: 15px;
@@ -1085,7 +1168,6 @@ onMounted(() => {
   cursor: pointer;
   flex-shrink: 0;
 }
-
 .batch-bar {
   position: fixed;
   bottom: 24px;
@@ -1098,7 +1180,7 @@ onMounted(() => {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
   z-index: 100;
   animation: slideUp 0.2s ease;
 }
@@ -1127,6 +1209,7 @@ onMounted(() => {
   border-color: #dc2626;
 }
 
+/* ========== 空状态 ========== */
 .empty-card {
   margin-bottom: 16px;
 }
@@ -1135,11 +1218,18 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 18px;
+  padding: 56px 18px;
 }
-.empty-emoji {
-  font-size: 40px;
-  margin-bottom: 12px;
+.empty-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin-bottom: 14px;
 }
 .empty-text {
   font-size: 15px;
@@ -1152,10 +1242,11 @@ onMounted(() => {
   color: var(--text-muted);
 }
 
+/* ========== 弹窗表单 ========== */
 .modal-mask {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.25);
+  background: rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -1309,15 +1400,15 @@ onMounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@media (max-width: 1200px) {
+  .stats-bar {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 900px) {
   .stats-bar {
-    flex-wrap: wrap;
-  }
-  .stat-item {
-    min-width: 60px;
-  }
-  .stat-rate {
-    min-width: 120px;
+    grid-template-columns: repeat(2, 1fr);
   }
   .board {
     grid-template-columns: 1fr;
@@ -1333,7 +1424,7 @@ onMounted(() => {
     justify-content: flex-end;
     flex-wrap: wrap;
   }
-  .search-input {
+  .search-wrap {
     width: 100%;
   }
   .pill-group {
@@ -1351,17 +1442,24 @@ onMounted(() => {
   .stats-bar {
     gap: 8px;
   }
-  .stat-item {
-    padding: 10px 8px;
+  .stat-card {
+    padding: 10px 12px;
   }
-  .stat-val {
+  .stat-num {
     font-size: 18px;
+  }
+  .stat-icon {
+    width: 32px;
+    height: 32px;
   }
   .quick-add {
     flex-wrap: wrap;
   }
-  .quick-select {
+  .quick-select-wrap {
     flex: 1;
+  }
+  .quick-select {
+    width: 100%;
   }
   .form-row {
     grid-template-columns: 1fr;

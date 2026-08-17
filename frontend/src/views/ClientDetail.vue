@@ -830,10 +830,12 @@ onMounted(() => {
             <label>备注</label>
             <textarea v-model="contactFormNotes" placeholder="请输入备注信息" class="input" rows="3"></textarea>
           </div>
-          <div class="form-field checkbox-field">
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="contactFormIsPrimary" />
-              <span>设为主要联系人</span>
+          <div class="checkbox-field">
+            <label class="checkbox-label" @click.prevent="contactFormIsPrimary = !contactFormIsPrimary">
+              <span class="custom-checkbox" :class="{ checked: contactFormIsPrimary }">
+                <svg v-if="contactFormIsPrimary" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+              <span class="checkbox-text">设为主要联系人</span>
             </label>
           </div>
         </div>
@@ -1469,25 +1471,38 @@ onMounted(() => {
   border-left: 3px solid var(--primary);
 }
 .checkbox-field {
-  margin-top: 14px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
 }
 .checkbox-label {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.checkbox-text {
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
-  cursor: pointer;
-  margin: 0;
+  line-height: 1;
 }
-.checkbox-label input[type="checkbox"] {
-  width: 15px;
-  height: 15px;
-  margin: 0;
-  accent-color: var(--primary);
-  cursor: pointer;
+.custom-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #cbd5e1;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  transition: all 0.15s;
+  background: #fff;
+}
+.custom-checkbox.checked {
+  background: var(--primary);
+  border-color: var(--primary);
 }
 
 .modal-lg { width: 600px; }

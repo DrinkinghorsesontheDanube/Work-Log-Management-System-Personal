@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Project, ProjectPhase } from '../types'
+import type { Project, ProjectPhase, PlanTask } from '../types'
 import { DEFAULT_PHASES } from '../types'
 import { storage } from '../utils/storage'
 import { createEntity, touchEntity } from '../utils/entity'
@@ -145,6 +145,34 @@ export const useProjectsStore = defineStore('projects', () => {
     savePhases()
   }
 
+  function createPhaseTasks(projectId: string): PlanTask[] {
+    const planTasks: PlanTask[] = []
+    const sortedPhases = [...phases.value].sort((a, b) => a.order - b.order)
+
+    sortedPhases.forEach((phase, index) => {
+      const task: PlanTask = {
+        id: `phase_${projectId}_${phase.id}`,
+        projectId,
+        parentId: null,
+        name: phase.name,
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: '',
+        duration: 0,
+        includeHolidays: false,
+        actualStartDate: null,
+        actualEndDate: null,
+        progress: 0,
+        status: index === 0 ? 'in_progress' : 'pending',
+        order: phase.order,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+      planTasks.push(task)
+    })
+
+    return planTasks
+  }
+
   const inProgressProjects = computed(() =>
     projects.value.filter(p => p.status === 'in_progress')
   )
@@ -170,6 +198,7 @@ export const useProjectsStore = defineStore('projects', () => {
     deletePhase,
     resetPhases,
     reorderPhases,
+    createPhaseTasks,
     inProgressProjects,
     completedProjects
   }

@@ -13,6 +13,12 @@ const SYSTEM_PROMPT = `你是一个专业的信息化集成项目售前岗位工
 4. 协助方案设计和技术选型
 5. 整理客户需求和待办事项
 
+重要规则：
+- 生成日报时，必须包含"明日计划"部分，列出明天需要开展的具体工作
+- 生成周报时，必须包含"下周计划"部分，列出下周需要开展的具体工作
+- 生成月报时，必须包含"下月计划"部分，列出下月需要开展的具体工作
+- 计划内容要具体、可执行，基于当前工作推导
+
 请用专业、简洁、有条理的方式回答。当用户描述工作内容时，帮他们整理成结构化的日志格式。`
 
 function buildHeaders(provider: AiProvider): Record<string, string> {
@@ -122,20 +128,49 @@ export async function testConnection(provider: AiProvider): Promise<{ success: b
 }
 
 export async function generateWorkLog(rawText: string): Promise<string> {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const formatDate = (d: Date) => `${d.getMonth() + 1}月${d.getDate()}日`
+
   const messages: ChatMessage[] = [
     {
       role: 'user',
-      content: `请帮我将以下工作内容整理成规范的工作日志格式，包含要点总结和关键事项：\n\n${rawText}`
+      content: `请帮我将以下工作内容整理成规范的工作日志格式。
+
+要求：
+1. 今日工作总结：整理今天的工作内容，包含要点总结和关键事项
+2. 明日计划（${formatDate(tomorrow)}）：根据今天的工作推导出明天需要开展的具体工作，要具体可执行
+
+今天的工作内容：
+${rawText}`
     }
   ]
   return chatWithAI(messages)
 }
 
 export async function generateWeeklyReport(logs: string[]): Promise<string> {
+  const today = new Date()
+  const dayOfWeek = today.getDay() || 7
+  const nextMonday = new Date(today)
+  nextMonday.setDate(today.getDate() - dayOfWeek + 8)
+  const nextSunday = new Date(today)
+  nextSunday.setDate(today.getDate() - dayOfWeek + 14)
+
+  const formatDate = (d: Date) => `${d.getMonth() + 1}月${d.getDate()}日`
+
   const messages: ChatMessage[] = [
     {
       role: 'user',
-      content: `请根据以下本周工作日志，生成一份结构清晰的周报，包含工作总结、重点成果、存在问题和下周计划：\n\n${logs.join('\n---\n')}`
+      content: `请根据以下本周工作日志，生成一份结构清晰的周报。
+
+要求：
+1. 工作总结：概括本周主要工作内容和成果
+2. 重点成果：列出本周取得的关键进展
+3. 存在问题：指出遇到的困难和需要协调的事项
+4. 下周计划（${formatDate(nextMonday)}-${formatDate(nextSunday)}）：根据本周工作推导出下周需要开展的具体工作，要具体可执行
+
+本周工作日志：
+${logs.join('\n---\n')}`
     }
   ]
   return chatWithAI(messages)

@@ -355,7 +355,24 @@ async function generateReport() {
         }
       }
 
-      const prompt = `请根据以下工作日志记录，生成一份${typeLabel}（${summaryTitle.value}）。\n要求：\n1. 使用 Markdown 格式\n2. 包含工作概况、工作明细、下周计划三个部分（用二级标题）\n3. 下周计划要结合待办事项数据，分为"优先处理（逾期）"、"本周计划"、"持续推进"三个小节\n4. 用简洁专业的语言\n5. 按项目或工作类型归纳总结\n6. 适合直接复制粘贴到工作汇报中\n\n工作日志：\n${logTexts.join('\n')}${todoContext}`
+      let planLabel = '下周计划'
+      let planDateRange = ''
+      if (summaryTab.value === 'day') {
+        planLabel = '明日计划'
+        const tomorrow = new Date(now)
+        tomorrow.setDate(tomorrow.getDate() + 1)
+        planDateRange = `（${tomorrow.getMonth() + 1}月${tomorrow.getDate()}日）`
+      } else if (summaryTab.value === 'week') {
+        planLabel = '下周计划'
+        planDateRange = `（${nextMon.getMonth() + 1}月${nextMon.getDate()}日-${nextSun.getMonth() + 1}月${nextSun.getDate()}日）`
+      } else {
+        planLabel = '下月计划'
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+        const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0)
+        planDateRange = `（${nextMonth.getMonth() + 1}月${nextMonth.getDate()}日-${nextMonthEnd.getMonth() + 1}月${nextMonthEnd.getDate()}日）`
+      }
+
+      const prompt = `请根据以下工作日志记录，生成一份${typeLabel}（${summaryTitle.value}）。\n要求：\n1. 使用 Markdown 格式\n2. 包含工作概况、工作明细、${planLabel}三个部分（用二级标题）\n3. ${planLabel}${planDateRange}要结合待办事项数据，分为"优先处理（逾期）"、"本周计划"、"持续推进"三个小节\n4. 用简洁专业的语言\n5. 按项目或工作类型归纳总结\n6. 适合直接复制粘贴到工作汇报中\n\n工作日志：\n${logTexts.join('\n')}${todoContext}`
       const result = await chatWithAI([{ role: 'user', content: prompt }])
       reportContent.value = result
     } catch {
