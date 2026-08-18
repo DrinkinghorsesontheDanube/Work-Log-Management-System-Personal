@@ -1,5 +1,6 @@
 # WorkLog System - Start Service
-$vbsPath = Join-Path $PSScriptRoot "frontend\start-silent.vbs"
+$root = Split-Path $PSScriptRoot -Parent
+$vbsPath = Join-Path $root "frontend\start-silent.vbs"
 
 Write-Host "Starting WorkLog System..." -ForegroundColor Yellow
 Start-Process wscript.exe -ArgumentList "`"$vbsPath`""

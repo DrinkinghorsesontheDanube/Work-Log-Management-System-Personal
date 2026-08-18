@@ -9,8 +9,8 @@ if (-not $isAdmin) {
     exit
 }
 
-$frontendDir = Join-Path $PSScriptRoot "frontend"
-$vbsPath = Join-Path $frontendDir "start-silent.vbs"
+$root = Split-Path $PSScriptRoot -Parent
+$vbsPath = Join-Path $root "frontend\start-silent.vbs"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
