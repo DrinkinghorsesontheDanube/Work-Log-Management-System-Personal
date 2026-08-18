@@ -73,7 +73,10 @@ export const useProjectsStore = defineStore('projects', () => {
       status: input.status || 'planning',
       currentPhaseId: input.currentPhaseId || phases.value[0]?.id || 'initiation',
       phaseHistory: input.phaseHistory || [],
+      phaseIds: input.phaseIds || [],
       clientId: input.clientId || null,
+      clientLeaderId: input.clientLeaderId || null,
+      clientExecutorId: input.clientExecutorId || null,
       budget: input.budget ?? 0,
       manager: input.manager || ''
     })

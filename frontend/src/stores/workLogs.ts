@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { WorkLog, WorkCategoryId } from '../types'
+import type { WorkLog } from '../types'
 import { storage } from '../utils/storage'
 import { createEntity, touchEntity } from '../utils/entity'
 

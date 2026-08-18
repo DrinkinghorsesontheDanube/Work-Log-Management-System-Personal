@@ -113,7 +113,7 @@ function onDragStart(e: DragEvent, phase: ProjectPhase) {
   e.dataTransfer!.effectAllowed = 'move'
 }
 
-function onDragOver(e: DragEvent, phase: ProjectPhase) {
+function onDragOver(e: DragEvent, _phase: ProjectPhase) {
   e.dataTransfer!.dropEffect = 'move'
 }
 
@@ -281,6 +281,7 @@ function save() {
       }],
       startDate: formStartDate.value,
       endDate: formEndDate.value,
+      phaseIds: [],
       clientId: formClientId.value,
       clientLeaderId: formClientLeaderId.value,
       clientExecutorId: formClientExecutorId.value,

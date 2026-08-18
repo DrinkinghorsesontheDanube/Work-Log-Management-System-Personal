@@ -46,15 +46,15 @@ export const useTodosStore = defineStore('todos', () => {
     return todos.value.filter(t => t.projectId === projectId)
   }
 
-  const pendingTodos = computed(() => 
+  const pendingTodos = computed(() =>
     todos.value.filter(t => t.status === 'pending')
   )
 
-  const inProgressTodos = computed(() => 
+  const inProgressTodos = computed(() =>
     todos.value.filter(t => t.status === 'in_progress')
   )
 
-  const completedTodos = computed(() => 
+  const completedTodos = computed(() =>
     todos.value.filter(t => t.status === 'completed')
   )
 

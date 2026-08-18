@@ -28,16 +28,9 @@ function refreshAiStatus() {
   aiConfigured.value = isAiConfigured()
 }
 
-const todayStr = new Date().toISOString().split('T')[0]
 const todayFormatted = new Date().toLocaleDateString('zh-CN', {
   year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
 })
-
-const stats = computed(() => ({
-  activeProjects: projectsStore.inProgressProjects.length,
-  pendingTodos: todosStore.pendingTodos.length + todosStore.inProgressTodos.length,
-  todayLogs: workLogsStore.workLogs.filter(w => w.date === todayStr).length
-}))
 
 const clientCount = computed(() => clientsStore.clients.length)
 const projectCount = computed(() => projectsStore.projects.length)
@@ -106,16 +99,6 @@ const recentLogs = computed(() =>
   [...workLogsStore.workLogs].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6)
 )
 
-const recentTodos = computed(() =>
-  [...todosStore.todos]
-    .filter(t => t.status !== 'completed')
-    .sort((a, b) => {
-      const pri: Record<string, number> = { high: 0, medium: 1, low: 2 }
-      return (pri[a.priority] ?? 1) - (pri[b.priority] ?? 1)
-    })
-    .slice(0, 6)
-)
-
 const hasContent = computed(() => {
   if (!pending.value) return false
   return pending.value.projects.length > 0 || pending.value.logs.length > 0 ||
@@ -180,10 +163,6 @@ function removeProject(idx: number) { pending.value?.projects.splice(idx, 1) }
 function removeLog(idx: number) { pending.value?.logs.splice(idx, 1) }
 function removeTodo(idx: number) { pending.value?.todos.splice(idx, 1) }
 function removeClient() { if (pending.value) pending.value.client = null }
-
-function priorityLabel(p: string) {
-  return p === 'high' ? '紧急' : p === 'low' ? '低' : '中'
-}
 
 onMounted(() => {
   projectsStore.loadProjects()

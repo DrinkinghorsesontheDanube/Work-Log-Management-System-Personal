@@ -124,8 +124,6 @@ function detectCategory(text: string): WorkCategoryId {
   return 'other'
 }
 
-const CLIENT_SUFFIX = /局|厅|处|委|办|中心|院|所|集团|公司|企业|学校|医院|银行|公安|法院|检察院|海关|税务|消防|城管|交通|住建|教育|卫健|人社|民政|财政|应急|生态环境|自然资源|农业农村|文旅|商务|市场监管/
-
 function detectClientName(text: string, clients: { name: string }[]): string {
   for (const c of clients) {
     if (text.includes(c.name)) return c.name
@@ -236,9 +234,14 @@ export function applySmartEntry(
     const client = clientsStore.ensureClient({
       name: clientName,
       type: 'government',
-      contact: '',
-      phone: '',
-      department: '',
+      contacts: [],
+      region: '',
+      industry: '',
+      importance: 'B',
+      followUpStatus: 'active',
+      lastContactDate: null,
+      nextFollowUpDate: null,
+      source: '',
       notes: ''
     })
     clientId = client.id
@@ -306,7 +309,9 @@ export function applySmartEntry(
       status: 'pending',
       priority: /紧急|重要|尽快|下班前|今天/.test(todoText) ? 'high' : 'medium',
       dueDate: parseDate(todoText),
-      projectId: project?.id || null
+      projectId: project?.id || null,
+      planTaskId: null,
+      category: 'project'
     })
     result.todos.push(todo)
     result.analyzedItems.push({
@@ -334,7 +339,7 @@ export function analyzeEntry(
   rawText: string,
   stores: {
     projectsStore: ProjectsStore
-    todosStore: TodosStore
+    todosStore?: TodosStore
     clientsStore?: ClientsStore
   }
 ): PendingEntry {
@@ -451,9 +456,14 @@ export function confirmEntry(
     const client = clientsStore.ensureClient({
       name: pending.client.name,
       type: 'government',
-      contact: '',
-      phone: '',
-      department: '',
+      contacts: [],
+      region: '',
+      industry: '',
+      importance: 'B',
+      followUpStatus: 'active',
+      lastContactDate: null,
+      nextFollowUpDate: null,
+      source: '',
       notes: ''
     })
     clientId = client.id
@@ -487,9 +497,11 @@ export function confirmEntry(
       clientsStore.addVisit({
         clientId,
         date: l.date,
+        contact: '',
         content: l.content,
         contactPersonId: '',
-        followUpResult: '已拜访'
+        result: '已拜访',
+        nextPlan: ''
       })
     }
   }
@@ -501,7 +513,9 @@ export function confirmEntry(
       status: 'pending',
       priority: t.priority as 'high' | 'medium' | 'low',
       dueDate: t.dueDate,
-      projectId
+      projectId,
+      planTaskId: null,
+      category: 'project'
     })
     result.todos.push(todo)
   }
@@ -509,8 +523,6 @@ export function confirmEntry(
   result.summary = pending.summary.replace('识别到', '已记录')
   return result
 }
-
-const VALID_CATEGORIES = WORK_CATEGORIES.map(c => `${c.id}(${c.name})`).join(', ')
 
 export async function analyzeEntryWithAI(
   rawText: string,

@@ -171,7 +171,7 @@ function onDragStart(index: number, e: DragEvent) {
   }
 }
 
-function onDragOver(index: number, e: DragEvent) {
+function onDragOver(_index: number, e: DragEvent) {
   e.preventDefault()
   if (e.dataTransfer) {
     e.dataTransfer.dropEffect = 'move'

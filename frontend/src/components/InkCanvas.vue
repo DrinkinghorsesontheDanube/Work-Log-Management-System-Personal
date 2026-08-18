@@ -4,7 +4,6 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 let ctx: CanvasRenderingContext2D | null = null
 let bgImage: HTMLImageElement | null = null
-let bgLoaded = false
 let lastX = -1000
 let lastY = -1000
 let prevX = -1000
@@ -43,7 +42,7 @@ function fillOverlay() {
 function loadBackground() {
   bgImage = new Image()
   bgImage.crossOrigin = 'anonymous'
-  bgImage.onload = () => { bgLoaded = true }
+  bgImage.onload = () => { /* 背景加载完成后无需额外处理 */ }
   bgImage.src = BG_URL
 }
 

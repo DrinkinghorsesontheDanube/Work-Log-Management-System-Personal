@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, inject } from 'vue'
+import { ref, onMounted, computed, inject } from 'vue'
 import { useWorkLogsStore } from '../stores/workLogs'
 import { useProjectsStore } from '../stores/projects'
 import { useClientsStore } from '../stores/clients'
@@ -157,10 +157,6 @@ function selectDate(dateStr: string) {
   selectedDate.value = dateStr
   summaryTab.value = 'day'
 }
-
-const selectedDateLogs = computed(() =>
-  workLogsStore.workLogs.filter(l => l.date === selectedDate.value)
-)
 
 function weekRangeOf(dateStr: string): [string, string] {
   const d = new Date(dateStr + 'T00:00:00')
@@ -414,7 +410,6 @@ function saveReport() {
 
 function loadReport(r: Report) {
   reportContent.value = r.content
-  showHistory.value = false
 }
 
 function deleteReport(id: string) {

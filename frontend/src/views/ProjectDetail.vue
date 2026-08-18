@@ -135,7 +135,7 @@ function syncProjectProgress() {
       updates.status = 'completed'
     } else if (!allDone && project.value.status === 'completed') {
       updates.status = 'in_progress'
-    } else if (allPending && project.value.status !== 'planning') {
+    } else if (allPending) {
       updates.status = 'planning'
     }
   }
@@ -179,12 +179,12 @@ const newLinkedTodoTitle = ref('')
 
 function addLinkedTodo() {
   if (!newLinkedTodoTitle.value.trim() || !editingPlan.value || !project.value) return
-  const now = new Date().toISOString()
   todosStore.addTodo({
     title: newLinkedTodoTitle.value.trim(),
     description: '',
     status: 'pending',
     priority: 'medium',
+    category: 'project',
     dueDate: editingPlan.value.endDate,
     projectId: project.value.id,
     planTaskId: editingPlan.value.id
@@ -631,10 +631,11 @@ function removePhaseFromProject(phaseId: string) {
   const ids = project.value.phaseIds?.length ? [...project.value.phaseIds] : projectPhases.value.map(p => p.id)
   const newIds = ids.filter(id => id !== phaseId)
   projectsStore.updateProject(project.value.id, { phaseIds: newIds })
-  project.value = projectsStore.getProjectById(project.value.id) || null
-  if (project.value.currentPhaseId === phaseId && newIds.length > 0) {
-    projectsStore.updateProject(project.value.id, { currentPhaseId: newIds[0] })
-    project.value = projectsStore.getProjectById(project.value.id) || null
+  const updated = projectsStore.getProjectById(project.value.id) || null
+  project.value = updated
+  if (updated && updated.currentPhaseId === phaseId && newIds.length > 0) {
+    projectsStore.updateProject(updated.id, { currentPhaseId: newIds[0] })
+    project.value = projectsStore.getProjectById(updated.id) || null
   }
 }
 

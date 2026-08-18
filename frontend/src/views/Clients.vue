@@ -227,7 +227,7 @@ function save() {
   if (editingClient.value) {
     clientsStore.updateClient(editingClient.value.id, data)
   } else {
-    clientsStore.addClient(data)
+    clientsStore.addClient({ ...data, lastContactDate: null })
   }
   showModal.value = false
 }

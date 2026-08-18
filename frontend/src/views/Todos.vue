@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useTodosStore } from '../stores/todos'
 import { useProjectsStore } from '../stores/projects'
 import ConfirmModal from '../components/ConfirmModal.vue'
+import TodoCategoryIcon from '../components/TodoCategoryIcon.vue'
 import type { Todo, TodoCategoryId } from '../types'
 import { TODO_CATEGORIES } from '../types'
 
@@ -126,6 +127,12 @@ const boardColumns = computed(() => [
   { key: 'in_progress', label: '进行中', color: '#3b82f6', emptyIcon: '🚀', emptyText: '暂无进行中', items: inProgressColumn.value },
   { key: 'completed', label: '已完成', color: '#10b981', emptyIcon: '✨', emptyText: '暂无已完成', items: completedColumn.value }
 ])
+
+/* 已完成列默认只展示最近 N 条，更早的折叠收纳，避免列表无限变长 */
+const completedLimit = 10
+const expandCompleted = ref(false)
+const visibleCompletedItems = computed(() => completedColumn.value.slice(0, completedLimit))
+const hiddenCompletedCount = computed(() => Math.max(0, completedColumn.value.length - completedLimit))
 
 function cycleStatus(todo: Todo) {
   const next: Record<string, Todo['status']> = {
@@ -349,7 +356,7 @@ onMounted(() => {
       />
       <div class="quick-select-wrap">
         <select v-model="quickCategory" class="quick-select">
-          <option v-for="cat in TODO_CATEGORIES" :key="cat.id" :value="cat.id">{{ cat.icon }} {{ cat.name }}</option>
+          <option v-for="cat in TODO_CATEGORIES" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
         </select>
         <svg class="select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
@@ -384,7 +391,7 @@ onMounted(() => {
             :key="cat.id"
             :class="['pill', { active: filterCategory === cat.id }]"
             @click="filterCategory = cat.id"
-          >{{ cat.icon }} {{ cat.name }}</button>
+          ><TodoCategoryIcon :id="cat.id" :size="12" /> {{ cat.name }}</button>
         </div>
       </div>
       <div class="toolbar-right">
@@ -423,7 +430,7 @@ onMounted(() => {
               <span class="col-empty-text">{{ col.emptyText }}</span>
             </div>
             <div
-              v-for="todo in col.items"
+              v-for="todo in (col.key === 'completed' ? (expandCompleted ? col.items : visibleCompletedItems) : col.items)"
               :key="todo.id"
               :class="['todo-card', todo.status, {
                 selected: batchMode && isSelected(todo.id),
@@ -455,15 +462,23 @@ onMounted(() => {
                   {{ priorityConfig[todo.priority].label }}
                 </span>
                 <span class="meta-tag cat-tag" :style="{ color: getCategoryInfo(todo.category).color, background: getCategoryInfo(todo.category).color + '18' }">
-                  {{ getCategoryInfo(todo.category).icon }} {{ getCategoryInfo(todo.category).name }}
+                  <TodoCategoryIcon :id="todo.category" :size="11" /> {{ getCategoryInfo(todo.category).name }}
                 </span>
-                <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag">📁 {{ getProjectName(todo.projectId) }}</span>
+                <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg> {{ getProjectName(todo.projectId) }}</span>
                 <span v-if="todo.dueDate" :class="['meta-tag due-tag', { 'due-overdue': isOverdue(todo) }]">
-                  📅 {{ isOverdue(todo) ? '已逾期 · ' : '' }}{{ formatDueDate(todo.dueDate) }}
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> {{ isOverdue(todo) ? '已逾期 · ' : '' }}{{ formatDueDate(todo.dueDate) }}
                 </span>
               </div>
             </div>
           </div>
+          <button
+            v-if="col.key === 'completed' && hiddenCompletedCount > 0"
+            class="col-more"
+            @click="expandCompleted = !expandCompleted"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline v-if="!expandCompleted" points="6 9 12 15 18 9"/><polyline v-else points="18 15 12 9 6 15"/></svg>
+            {{ expandCompleted ? '收起' : `展开全部 ${hiddenCompletedCount} 条更早记录` }}
+          </button>
         </div>
       </div>
     </template>
@@ -488,7 +503,7 @@ onMounted(() => {
             <span class="col-count">{{ group.items.length }}</span>
           </div>
           <div
-            v-for="todo in group.items"
+            v-for="todo in (group.key === 'completed' ? (expandCompleted ? group.items : visibleCompletedItems) : group.items)"
             :key="todo.id"
             :class="['list-row-item', { selected: batchMode && isSelected(todo.id), overdue: isOverdue(todo) }]"
             @click="batchMode ? toggleSelect(todo.id) : openEdit(todo)"
@@ -514,15 +529,23 @@ onMounted(() => {
                 {{ priorityConfig[todo.priority].label }}
               </span>
               <span class="meta-tag cat-tag" :style="{ color: getCategoryInfo(todo.category).color, background: getCategoryInfo(todo.category).color + '18' }">
-                {{ getCategoryInfo(todo.category).icon }} {{ getCategoryInfo(todo.category).name }}
+                <TodoCategoryIcon :id="todo.category" :size="11" /> {{ getCategoryInfo(todo.category).name }}
               </span>
-              <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag">📁 {{ getProjectName(todo.projectId) }}</span>
+              <span v-if="getProjectName(todo.projectId)" class="meta-tag proj-tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg> {{ getProjectName(todo.projectId) }}</span>
               <span v-if="todo.dueDate" :class="['meta-tag due-tag', { 'due-overdue': isOverdue(todo) }]">
-                📅 {{ isOverdue(todo) ? '已逾期 · ' : '' }}{{ formatDueDate(todo.dueDate) }}
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> {{ isOverdue(todo) ? '已逾期 · ' : '' }}{{ formatDueDate(todo.dueDate) }}
               </span>
             </div>
             <button class="card-delete" @click.stop="removeTodo(todo.id)" title="删除">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+            <button
+              v-if="group.key === 'completed' && hiddenCompletedCount > 0"
+              class="col-more"
+              @click="expandCompleted = !expandCompleted"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline v-if="!expandCompleted" points="6 9 12 15 18 9"/><polyline v-else points="18 15 12 9 6 15"/></svg>
+              {{ expandCompleted ? '收起' : `展开全部 ${hiddenCompletedCount} 条更早记录` }}
             </button>
           </div>
         </div>
@@ -576,7 +599,7 @@ onMounted(() => {
                 :style="formCategory === cat.id ? { borderColor: cat.color, background: cat.color + '12' } : {}"
                 @click="formCategory = cat.id"
               >
-                <span class="cat-icon">{{ cat.icon }}</span>
+                <span class="cat-icon"><TodoCategoryIcon :id="cat.id" :size="15" /></span>
                 <span class="cat-name">{{ cat.name }}</span>
               </button>
             </div>
@@ -781,6 +804,10 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 10;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-xs);
 }
 .toolbar-left {
   display: flex;
@@ -875,13 +902,15 @@ onMounted(() => {
 /* ========== 看板 ========== */
 .board {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1.3fr 1.3fr 0.8fr;
   gap: 18px;
   align-items: start;
 }
 .board-col {
   display: flex;
   flex-direction: column;
+  height: calc(100vh - 350px);
+  min-height: 240px;
   background: var(--bg-hover);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -920,6 +949,9 @@ onMounted(() => {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 .col-empty {
   display: flex;
@@ -1209,6 +1241,30 @@ onMounted(() => {
   border-color: #dc2626;
 }
 
+/* ========== 已完成列折叠 ========== */
+.col-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 12px 12px;
+  padding: 8px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.col-more:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-50);
+}
+
 /* ========== 空状态 ========== */
 .empty-card {
   margin-bottom: 16px;
@@ -1359,7 +1415,10 @@ onMounted(() => {
   border-color: var(--primary);
 }
 .cat-icon {
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .cat-name {
   font-weight: 500;
@@ -1403,6 +1462,9 @@ onMounted(() => {
 @media (max-width: 1200px) {
   .stats-bar {
     grid-template-columns: repeat(3, 1fr);
+  }
+  .board {
+    grid-template-columns: 1.15fr 1.15fr 0.85fr;
   }
 }
 
