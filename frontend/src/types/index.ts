@@ -16,7 +16,7 @@ export const DEFAULT_PHASES: ProjectPhase[] = [
   { id: 'testing', name: '测试验收', order: 7, color: '#22c55e' },
   { id: 'trial', name: '试运行', order: 8, color: '#14b8a6' },
   { id: 'delivery', name: '正式交付', order: 9, color: '#06b6d4' },
-  { id: 'maintenance', name: '运维支持', order: 10, color: '#3b82f6' }
+  { id: 'maintenance', name: '运维支持', order: 10, color: '#3b82f6' },
 ]
 
 export interface Project {
@@ -72,7 +72,7 @@ export const TODO_CATEGORIES: { id: TodoCategoryId; name: string; color: string 
   { id: 'document', name: '文档编写', color: '#6366f1' },
   { id: 'meeting', name: '会议沟通', color: '#8b5cf6' },
   { id: 'review', name: '评审审批', color: '#059669' },
-  { id: 'other', name: '其他', color: '#94a3b8' }
+  { id: 'other', name: '其他', color: '#94a3b8' },
 ]
 
 export interface Todo {
@@ -112,10 +112,10 @@ export const WORK_CATEGORIES = [
   { id: 'coordination', name: '内部协调', icon: '🤝', color: '#a855f7' },
   { id: 'approval', name: '审批流程', icon: '✅', color: '#eab308' },
   { id: 'travel', name: '出差', icon: '🚄', color: '#0ea5e9' },
-  { id: 'other', name: '其他', icon: '📌', color: '#94a3b8' }
+  { id: 'other', name: '其他', icon: '📌', color: '#94a3b8' },
 ] as const
 
-export type WorkCategoryId = typeof WORK_CATEGORIES[number]['id']
+export type WorkCategoryId = (typeof WORK_CATEGORIES)[number]['id']
 
 export interface WorkLog {
   id: string
@@ -188,10 +188,30 @@ export interface AiProvider {
 
 export const AI_PROVIDERS: Omit<AiProvider, 'apiKey' | 'enabled'>[] = [
   { id: 'openai', name: 'OpenAI', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
-  { id: 'deepseek', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    baseUrl: 'https://api.deepseek.com/v1',
+    model: 'deepseek-chat',
+  },
   { id: 'xiaomi', name: '小米 MiMo', baseUrl: 'https://api.xiaomimimo.com/v1', model: 'mimo-v2.5' },
-  { id: 'qwen', name: '通义千问', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
-  { id: 'moonshot', name: 'Moonshot (Kimi)', baseUrl: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
-  { id: 'zhipu', name: '智谱 (GLM)', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash' },
-  { id: 'custom', name: '自定义', baseUrl: '', model: '' }
+  {
+    id: 'qwen',
+    name: '通义千问',
+    baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    model: 'qwen-plus',
+  },
+  {
+    id: 'moonshot',
+    name: 'Moonshot (Kimi)',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    model: 'moonshot-v1-8k',
+  },
+  {
+    id: 'zhipu',
+    name: '智谱 (GLM)',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    model: 'glm-4-flash',
+  },
+  { id: 'custom', name: '自定义', baseUrl: '', model: '' },
 ]

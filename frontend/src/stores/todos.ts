@@ -1,4 +1,3 @@
-
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Todo } from '../types'
@@ -9,8 +8,10 @@ export const useTodosStore = defineStore('todos', () => {
   const todos = ref<Todo[]>([])
 
   function loadTodos() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 旧数据迁移，字段结构未知
     todos.value = storage.getTodos().map((t: any) => ({
-      category: 'project', ...t
+      category: 'project',
+      ...t,
     }))
   }
 
@@ -26,7 +27,7 @@ export const useTodosStore = defineStore('todos', () => {
   }
 
   function updateTodo(id: string, updates: Partial<Todo>) {
-    const index = todos.value.findIndex(t => t.id === id)
+    const index = todos.value.findIndex((t) => t.id === id)
     if (index !== -1) {
       todos.value[index] = touchEntity(todos.value[index], updates)
       saveTodos()
@@ -38,29 +39,23 @@ export const useTodosStore = defineStore('todos', () => {
   }
 
   function deleteTodo(id: string) {
-    todos.value = todos.value.filter(t => t.id !== id)
+    todos.value = todos.value.filter((t) => t.id !== id)
     saveTodos()
   }
 
   function getTodosByProjectId(projectId: string) {
-    return todos.value.filter(t => t.projectId === projectId)
+    return todos.value.filter((t) => t.projectId === projectId)
   }
 
-  const pendingTodos = computed(() =>
-    todos.value.filter(t => t.status === 'pending')
-  )
+  const pendingTodos = computed(() => todos.value.filter((t) => t.status === 'pending'))
 
-  const inProgressTodos = computed(() =>
-    todos.value.filter(t => t.status === 'in_progress')
-  )
+  const inProgressTodos = computed(() => todos.value.filter((t) => t.status === 'in_progress'))
 
-  const completedTodos = computed(() =>
-    todos.value.filter(t => t.status === 'completed')
-  )
+  const completedTodos = computed(() => todos.value.filter((t) => t.status === 'completed'))
 
   const todayTodos = computed(() => {
     const today = new Date().toISOString().split('T')[0]
-    return todos.value.filter(t => t.dueDate === today && t.status !== 'completed')
+    return todos.value.filter((t) => t.dueDate === today && t.status !== 'completed')
   })
 
   return {
@@ -74,6 +69,6 @@ export const useTodosStore = defineStore('todos', () => {
     pendingTodos,
     inProgressTodos,
     completedTodos,
-    todayTodos
+    todayTodos,
   }
 })

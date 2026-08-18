@@ -8,6 +8,7 @@ import { useClientsStore } from '../stores/clients'
 import { analyzeEntry, confirmEntry, analyzeEntryWithAI } from '../services/smartEntry'
 import type { PendingEntry } from '../services/smartEntry'
 import { WORK_CATEGORIES } from '../types'
+import type { Todo } from '../types'
 import { isAiConfigured } from '../services/aiService'
 
 const router = useRouter()
@@ -83,7 +84,7 @@ const nextWeekTodos = computed(() => {
   })
 })
 
-function toggleTodoStatus(todo: any) {
+function toggleTodoStatus(todo: Todo) {
   todosStore.updateTodo(todo.id, { status: todo.status === 'completed' ? 'pending' : 'completed' })
 }
 

@@ -10,8 +10,12 @@ export const useProjectsStore = defineStore('projects', () => {
   const phases = ref<ProjectPhase[]>([])
 
   function loadProjects() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 旧数据迁移，字段结构未知
     projects.value = storage.getProjects().map((p: any) => ({
-      clientLeaderId: null, clientExecutorId: null, phaseIds: [], ...p
+      clientLeaderId: null,
+      clientExecutorId: null,
+      phaseIds: [],
+      ...p,
     }))
   }
 
@@ -35,7 +39,7 @@ export const useProjectsStore = defineStore('projects', () => {
   }
 
   function updateProject(id: string, updates: Partial<Project>) {
-    const index = projects.value.findIndex(p => p.id === id)
+    const index = projects.value.findIndex((p) => p.id === id)
     if (index !== -1) {
       projects.value[index] = touchEntity(projects.value[index], updates)
       saveProjects()
@@ -43,20 +47,24 @@ export const useProjectsStore = defineStore('projects', () => {
   }
 
   function deleteProject(id: string) {
-    projects.value = projects.value.filter(p => p.id !== id)
+    projects.value = projects.value.filter((p) => p.id !== id)
     saveProjects()
   }
 
   function getProjectById(id: string) {
-    return projects.value.find(p => p.id === id)
+    return projects.value.find((p) => p.id === id)
   }
 
   function findProjectByName(name: string) {
     const normalized = name.trim().toLowerCase()
     if (!normalized) return undefined
-    return projects.value.find(project => {
+    return projects.value.find((project) => {
       const projectName = project.name.trim().toLowerCase()
-      return projectName === normalized || projectName.includes(normalized) || normalized.includes(projectName)
+      return (
+        projectName === normalized ||
+        projectName.includes(normalized) ||
+        normalized.includes(projectName)
+      )
     })
   }
 
@@ -78,7 +86,7 @@ export const useProjectsStore = defineStore('projects', () => {
       clientLeaderId: input.clientLeaderId || null,
       clientExecutorId: input.clientExecutorId || null,
       budget: input.budget ?? 0,
-      manager: input.manager || ''
+      manager: input.manager || '',
     })
   }
 
@@ -87,7 +95,7 @@ export const useProjectsStore = defineStore('projects', () => {
     if (!project) return
 
     const history = [...(project.phaseHistory || [])]
-    const currentRecord = history.find(r => r.phaseId === project.currentPhaseId && !r.endDate)
+    const currentRecord = history.find((r) => r.phaseId === project.currentPhaseId && !r.endDate)
     if (currentRecord) {
       currentRecord.endDate = new Date().toISOString().split('T')[0]
     }
@@ -96,12 +104,12 @@ export const useProjectsStore = defineStore('projects', () => {
       phaseId: newPhaseId,
       startDate: new Date().toISOString().split('T')[0],
       endDate: null,
-      note
+      note,
     })
 
     updateProject(projectId, {
       currentPhaseId: newPhaseId,
-      phaseHistory: history
+      phaseHistory: history,
     })
   }
 
@@ -111,7 +119,7 @@ export const useProjectsStore = defineStore('projects', () => {
       id: `custom_${Date.now()}`,
       name,
       order: maxOrder + 1,
-      color
+      color,
     }
     phases.value.push(newPhase)
     savePhases()
@@ -119,7 +127,7 @@ export const useProjectsStore = defineStore('projects', () => {
   }
 
   function updatePhase(id: string, updates: Partial<ProjectPhase>) {
-    const index = phases.value.findIndex(p => p.id === id)
+    const index = phases.value.findIndex((p) => p.id === id)
     if (index !== -1) {
       phases.value[index] = { ...phases.value[index], ...updates }
       savePhases()
@@ -127,7 +135,7 @@ export const useProjectsStore = defineStore('projects', () => {
   }
 
   function deletePhase(id: string) {
-    phases.value = phases.value.filter(p => p.id !== id)
+    phases.value = phases.value.filter((p) => p.id !== id)
     savePhases()
   }
 
@@ -138,12 +146,12 @@ export const useProjectsStore = defineStore('projects', () => {
 
   function reorderPhases(fromId: string, toId: string) {
     const list = [...phases.value]
-    const fromIdx = list.findIndex(p => p.id === fromId)
-    const toIdx = list.findIndex(p => p.id === toId)
+    const fromIdx = list.findIndex((p) => p.id === fromId)
+    const toIdx = list.findIndex((p) => p.id === toId)
     if (fromIdx === -1 || toIdx === -1) return
     const [moved] = list.splice(fromIdx, 1)
     list.splice(toIdx, 0, moved)
-    list.forEach((p, i) => p.order = i)
+    list.forEach((p, i) => (p.order = i))
     phases.value = list
     savePhases()
   }
@@ -168,7 +176,7 @@ export const useProjectsStore = defineStore('projects', () => {
         status: index === 0 ? 'in_progress' : 'pending',
         order: phase.order,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       }
       planTasks.push(task)
     })
@@ -177,12 +185,10 @@ export const useProjectsStore = defineStore('projects', () => {
   }
 
   const inProgressProjects = computed(() =>
-    projects.value.filter(p => p.status === 'in_progress')
+    projects.value.filter((p) => p.status === 'in_progress'),
   )
 
-  const completedProjects = computed(() =>
-    projects.value.filter(p => p.status === 'completed')
-  )
+  const completedProjects = computed(() => projects.value.filter((p) => p.status === 'completed'))
 
   return {
     projects,
@@ -203,6 +209,6 @@ export const useProjectsStore = defineStore('projects', () => {
     reorderPhases,
     createPhaseTasks,
     inProgressProjects,
-    completedProjects
+    completedProjects,
   }
 })

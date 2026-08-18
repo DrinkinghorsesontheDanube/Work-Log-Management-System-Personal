@@ -1,4 +1,15 @@
-import type { Project, Todo, WorkLog, AiMessage, AiProvider, ProjectPhase, Client, Report, PlanTask, VisitRecord } from '../types'
+import type {
+  Project,
+  Todo,
+  WorkLog,
+  AiMessage,
+  AiProvider,
+  ProjectPhase,
+  Client,
+  Report,
+  PlanTask,
+  VisitRecord,
+} from '../types'
 import { DEFAULT_PHASES } from '../types'
 
 const STORAGE_KEYS = {
@@ -11,7 +22,7 @@ const STORAGE_KEYS = {
   clients: 'worklog_clients',
   visitRecords: 'worklog_visitRecords',
   reports: 'worklog_reports',
-  planTasks: 'worklog_planTasks'
+  planTasks: 'worklog_planTasks',
 }
 
 export const storage = {
@@ -100,7 +111,7 @@ export const storage = {
       aiMessages: this.getAiMessages(),
       aiProvider: this.getAiProvider(),
       projectPhases: this.getProjectPhases(),
-      exportTime: new Date().toISOString()
+      exportTime: new Date().toISOString(),
     }
     return JSON.stringify(data, null, 2)
   },
@@ -117,7 +128,7 @@ export const storage = {
   },
   clearAllData() {
     const aiProvider = this.getAiProvider()
-    Object.values(STORAGE_KEYS).forEach(key => {
+    Object.values(STORAGE_KEYS).forEach((key) => {
       if (key !== STORAGE_KEYS.aiProvider) {
         localStorage.removeItem(key)
       }
@@ -125,5 +136,5 @@ export const storage = {
     if (aiProvider) {
       this.saveAiProvider(aiProvider)
     }
-  }
+  },
 }

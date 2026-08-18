@@ -23,7 +23,7 @@ const SYSTEM_PROMPT = `你是一个专业的信息化集成项目售前岗位工
 
 function buildHeaders(provider: AiProvider): Record<string, string> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
   }
 
   // 小米 MiMo 使用 api-key 头，其他使用 Authorization: Bearer
@@ -46,18 +46,15 @@ export async function chatWithAI(messages: ChatMessage[]): Promise<string> {
 
   const body: Record<string, unknown> = {
     model: provider.model,
-    messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      ...messages
-    ],
+    messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages],
     temperature: 0.7,
-    max_completion_tokens: 2000
+    max_completion_tokens: 2000,
   }
 
   const response = await fetch(url, {
     method: 'POST',
     headers: buildHeaders(provider),
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) {
@@ -82,20 +79,22 @@ export async function chatWithAI(messages: ChatMessage[]): Promise<string> {
   return content
 }
 
-export async function testConnection(provider: AiProvider): Promise<{ success: boolean; message: string }> {
+export async function testConnection(
+  provider: AiProvider,
+): Promise<{ success: boolean; message: string }> {
   const url = `${provider.baseUrl.replace(/\/+$/, '')}/chat/completions`
 
   const body = {
     model: provider.model,
     messages: [{ role: 'user', content: '你好' }],
-    max_completion_tokens: 10
+    max_completion_tokens: 10,
   }
 
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: buildHeaders(provider),
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     })
 
     if (!response.ok) {
@@ -109,7 +108,10 @@ export async function testConnection(provider: AiProvider): Promise<{ success: b
       if (response.status === 404) {
         return { success: false, message: 'API 地址或模型名称错误' }
       }
-      return { success: false, message: `请求失败 (${response.status}): ${errorText.slice(0, 150)}` }
+      return {
+        success: false,
+        message: `请求失败 (${response.status}): ${errorText.slice(0, 150)}`,
+      }
     }
 
     const data = await response.json()
@@ -121,7 +123,11 @@ export async function testConnection(provider: AiProvider): Promise<{ success: b
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : '未知错误'
     if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-      return { success: false, message: '网络请求被阻止，可能是 CORS 限制。请确认 API 地址正确，或尝试使用支持 CORS 的供应商' }
+      return {
+        success: false,
+        message:
+          '网络请求被阻止，可能是 CORS 限制。请确认 API 地址正确，或尝试使用支持 CORS 的供应商',
+      }
     }
     return { success: false, message: `连接失败: ${msg}` }
   }
@@ -142,8 +148,8 @@ export async function generateWorkLog(rawText: string): Promise<string> {
 2. 明日计划（${formatDate(tomorrow)}）：根据今天的工作推导出明天需要开展的具体工作，要具体可执行
 
 今天的工作内容：
-${rawText}`
-    }
+${rawText}`,
+    },
   ]
   return chatWithAI(messages)
 }
@@ -170,8 +176,8 @@ export async function generateWeeklyReport(logs: string[]): Promise<string> {
 4. 下周计划（${formatDate(nextMonday)}-${formatDate(nextSunday)}）：根据本周工作推导出下周需要开展的具体工作，要具体可执行
 
 本周工作日志：
-${logs.join('\n---\n')}`
-    }
+${logs.join('\n---\n')}`,
+    },
   ]
   return chatWithAI(messages)
 }
@@ -180,8 +186,8 @@ export async function analyzeProject(projectInfo: string): Promise<string> {
   const messages: ChatMessage[] = [
     {
       role: 'user',
-      content: `请分析以下项目信息，给出项目状态评估、风险提示和改进建议：\n\n${projectInfo}`
-    }
+      content: `请分析以下项目信息，给出项目状态评估、风险提示和改进建议：\n\n${projectInfo}`,
+    },
   ]
   return chatWithAI(messages)
 }

@@ -193,7 +193,7 @@ function addLinkedTodo() {
 }
 
 function unlinkTodo(todoId: string) {
-  todosStore.updateTodo(todoId, { planTaskId: null } as any)
+  todosStore.updateTodo(todoId, { planTaskId: null })
 }
 
 function syncProgressFromTodos(taskId: string) {
@@ -500,8 +500,8 @@ async function aiGeneratePlan() {
     }
     aiPreviewTasks.value = preview
     showAiPreview.value = true
-  } catch (e: any) {
-    alert('AI 生成失败：' + (e.message || '未知错误'))
+  } catch (e) {
+    alert('AI 生成失败：' + ((e instanceof Error && e.message) || '未知错误'))
   } finally {
     aiGenerating.value = false
   }

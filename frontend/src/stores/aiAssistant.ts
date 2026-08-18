@@ -20,11 +20,14 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
   }
 
   async function sendMessage(content: string) {
-    const userMessage: AiMessage = createEntity({
-      role: 'user',
-      content,
-      timestamp: new Date().toISOString()
-    }, 'msg')
+    const userMessage: AiMessage = createEntity(
+      {
+        role: 'user',
+        content,
+        timestamp: new Date().toISOString(),
+      },
+      'msg',
+    )
     messages.value.push(userMessage)
     loading.value = true
     error.value = ''
@@ -35,28 +38,34 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
         throw new Error('请先在设置中配置 AI 服务')
       }
 
-      const chatHistory: AiChatMessage[] = messages.value.slice(-10).map(m => ({
+      const chatHistory: AiChatMessage[] = messages.value.slice(-10).map((m) => ({
         role: m.role,
-        content: m.content
+        content: m.content,
       }))
 
       const reply = await chatWithAI(chatHistory)
 
-      const assistantMessage: AiMessage = createEntity({
-        role: 'assistant',
-        content: reply,
-        timestamp: new Date().toISOString()
-      }, 'msg')
+      const assistantMessage: AiMessage = createEntity(
+        {
+          role: 'assistant',
+          content: reply,
+          timestamp: new Date().toISOString(),
+        },
+        'msg',
+      )
       messages.value.push(assistantMessage)
       saveMessages()
     } catch (e: unknown) {
       const errorMessage = e instanceof Error ? e.message : '请求失败'
       error.value = errorMessage
-      const errorMsg: AiMessage = createEntity({
-        role: 'assistant',
-        content: `[错误] ${errorMessage}`,
-        timestamp: new Date().toISOString()
-      }, 'msg')
+      const errorMsg: AiMessage = createEntity(
+        {
+          role: 'assistant',
+          content: `[错误] ${errorMessage}`,
+          timestamp: new Date().toISOString(),
+        },
+        'msg',
+      )
       messages.value.push(errorMsg)
       saveMessages()
     } finally {
@@ -75,6 +84,6 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
     error,
     loadMessages,
     sendMessage,
-    clearMessages
+    clearMessages,
   }
 })

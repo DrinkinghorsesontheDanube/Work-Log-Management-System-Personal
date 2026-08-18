@@ -100,12 +100,20 @@ function parseDate(text: string): string {
 }
 
 /** 常见动词/副词，不应作为项目名 */
-const VERBS = /完成了|完成|进行|开始|结束|讨论|汇报|总结|整理|跟进|推进|协调|沟通|会议|评审|提交|编写|修改|更新|处理|确认|对接|准备|参加|出席|安排|部署|测试|上线|发布|检查|排查|修复|优化|设计|开发|实施|验收|交付|运维|支持|立项|调研|投标|中标|签约|谈判|回款|开票|出差|拜访|培训|演示|出差/
+const VERBS =
+  /完成了|完成|进行|开始|结束|讨论|汇报|总结|整理|跟进|推进|协调|沟通|会议|评审|提交|编写|修改|更新|处理|确认|对接|准备|参加|出席|安排|部署|测试|上线|发布|检查|排查|修复|优化|设计|开发|实施|验收|交付|运维|支持|立项|调研|投标|中标|签约|谈判|回款|开票|出差|拜访|培训|演示|出差/
 
 const CATEGORY_RULES: { pattern: RegExp; id: WorkCategoryId }[] = [
-  { pattern: /拜访|走访|会见|接待|走访|回访|拜访了|去了.*局|去了.*厅|去了.*处|去了.*中心/, id: 'client_visit' },
+  {
+    pattern: /拜访|走访|会见|接待|走访|回访|拜访了|去了.*局|去了.*厅|去了.*处|去了.*中心/,
+    id: 'client_visit',
+  },
   { pattern: /方案|标书|投标|招标|磋商|比选|应标|开标|评标|中标|竞标|采购文件/, id: 'bidding' },
-  { pattern: /编写|撰写|编写了|写.*方案|编写.*方案|编写.*报告|编写.*文档|技术方案|解决方案|建设方案/, id: 'solution' },
+  {
+    pattern:
+      /编写|撰写|编写了|写.*方案|编写.*方案|编写.*报告|编写.*文档|技术方案|解决方案|建设方案/,
+    id: 'solution',
+  },
   { pattern: /技术交流|技术对接|技术讨论|产品演示|选型|POC|测试验证|适配/, id: 'tech_exchange' },
   { pattern: /竞品|竞争分析|对手|对比分析|产品对比|厂商/, id: 'competitive' },
   { pattern: /需求调研|需求分析|需求对接|现场调研|业务调研|摸底/, id: 'requirement' },
@@ -114,7 +122,7 @@ const CATEGORY_RULES: { pattern: RegExp; id: WorkCategoryId }[] = [
   { pattern: /培训|学习|考试|认证|研讨|分享/, id: 'training' },
   { pattern: /协调|内部.*沟通|跨部门|对接.*部门|催.*流程/, id: 'coordination' },
   { pattern: /审批|流程|签报|OA|走流程|报批/, id: 'approval' },
-  { pattern: /出差|外出|去了|赶往|赶赴|飞往|高铁/, id: 'travel' }
+  { pattern: /出差|外出|去了|赶往|赶赴|飞往|高铁/, id: 'travel' },
 ]
 
 function detectCategory(text: string): WorkCategoryId {
@@ -128,7 +136,8 @@ function detectClientName(text: string, clients: { name: string }[]): string {
   for (const c of clients) {
     if (text.includes(c.name)) return c.name
   }
-  const pattern = /([\u4e00-\u9fa5]{2,10}(?:市|区|县|镇)?)((?:[\u4e00-\u9fa5]{1,6}(?:局|厅|处|委|办|中心|院|所)){1,2})/
+  const pattern =
+    /([\u4e00-\u9fa5]{2,10}(?:市|区|县|镇)?)((?:[\u4e00-\u9fa5]{1,6}(?:局|厅|处|委|办|中心|院|所)){1,2})/
   const match = text.match(pattern)
   if (match?.[0]) return match[0]
   const simplePattern = /([\u4e00-\u9fa5]{2,8}(?:集团|公司|企业|学校|医院))/
@@ -158,7 +167,8 @@ function inferProjectName(text: string, projects: Project[]): string {
   }
 
   // 3. 匹配 "关于/跟进/推进 XX" 模式，且 XX 不是动词
-  const aboutPattern = /(?:关于|跟进|推进|负责)[：:\s]*([a-zA-Z\u4e00-\u9fa5][a-zA-Z\u4e00-\u9fa5\d]{1,15}?)(?:[，。；;的]|$)/
+  const aboutPattern =
+    /(?:关于|跟进|推进|负责)[：:\s]*([a-zA-Z\u4e00-\u9fa5][a-zA-Z\u4e00-\u9fa5\d]{1,15}?)(?:[，。；;的]|$)/
   const aboutMatch = text.match(aboutPattern)
   if (aboutMatch?.[1]) {
     const name = aboutMatch[1].trim()
@@ -178,10 +188,20 @@ function inferProjectName(text: string, projects: Project[]): string {
 
 function splitTodoText(text: string) {
   // 待办关键词
-  const markers = ['待办', '待处理', '需跟进', '需要跟进', '后续要', '明天要', '下周要', '提醒', '记得']
+  const markers = [
+    '待办',
+    '待处理',
+    '需跟进',
+    '需要跟进',
+    '后续要',
+    '明天要',
+    '下周要',
+    '提醒',
+    '记得',
+  ]
   const markerIndex = markers
-    .map(marker => text.indexOf(marker))
-    .filter(index => index >= 0)
+    .map((marker) => text.indexOf(marker))
+    .filter((index) => index >= 0)
     .sort((a, b) => a - b)[0]
 
   if (markerIndex === undefined) {
@@ -189,8 +209,14 @@ function splitTodoText(text: string) {
   }
 
   return {
-    logText: text.slice(0, markerIndex).replace(/[，。；;：:、\s]+$/, '').trim(),
-    todoText: text.slice(markerIndex).replace(/^(待办|待处理|需跟进|需要跟进|后续|提醒|记得)[：:\s]*/, '').trim()
+    logText: text
+      .slice(0, markerIndex)
+      .replace(/[，。；;：:、\s]+$/, '')
+      .trim(),
+    todoText: text
+      .slice(markerIndex)
+      .replace(/^(待办|待处理|需跟进|需要跟进|后续|提醒|记得)[：:\s]*/, '')
+      .trim(),
   }
 }
 
@@ -202,11 +228,13 @@ function buildLogContent(text: string, projectName: string) {
 }
 
 function buildTodoTitle(text: string) {
-  return text
-    .replace(/^(明天|今天|后天|下周|本周|之前|前)\s*/, '')
-    .replace(/[。；;，,]+$/, '')
-    .trim()
-    .slice(0, 60) || '待办事项'
+  return (
+    text
+      .replace(/^(明天|今天|后天|下周|本周|之前|前)\s*/, '')
+      .replace(/[。；;，,]+$/, '')
+      .trim()
+      .slice(0, 60) || '待办事项'
+  )
 }
 
 export function applySmartEntry(
@@ -216,10 +244,16 @@ export function applySmartEntry(
     todosStore: TodosStore
     workLogsStore: WorkLogsStore
     clientsStore?: ClientsStore
-  }
+  },
 ): SmartEntryResult {
   const text = rawText.trim()
-  const result: SmartEntryResult = { projects: [], todos: [], workLogs: [], summary: '', analyzedItems: [] }
+  const result: SmartEntryResult = {
+    projects: [],
+    todos: [],
+    workLogs: [],
+    summary: '',
+    analyzedItems: [],
+  }
   if (!text) return result
 
   const { projectsStore, todosStore, workLogsStore, clientsStore } = stores
@@ -242,7 +276,7 @@ export function applySmartEntry(
       lastContactDate: null,
       nextFollowUpDate: null,
       source: '',
-      notes: ''
+      notes: '',
     })
     clientId = client.id
     if (!clientsStore.findClientByName(clientName)) {
@@ -250,21 +284,22 @@ export function applySmartEntry(
         type: 'client',
         title: clientName,
         detail: '新客户已自动创建',
-        isNew: true
+        isNew: true,
       })
     }
   }
 
-  const project = projectName && projectName.length >= 2
-    ? projectsStore.ensureProject({
-        name: projectName,
-        description: text.slice(0, 120),
-        status: 'planning',
-        progress: 0,
-        startDate: today(),
-        endDate: ''
-      })
-    : undefined
+  const project =
+    projectName && projectName.length >= 2
+      ? projectsStore.ensureProject({
+          name: projectName,
+          description: text.slice(0, 120),
+          status: 'planning',
+          progress: 0,
+          startDate: today(),
+          endDate: '',
+        })
+      : undefined
 
   if (project && !existingProject) {
     result.projects.push(project)
@@ -272,14 +307,14 @@ export function applySmartEntry(
       type: 'project',
       title: project.name,
       detail: '新项目已自动创建',
-      isNew: true
+      isNew: true,
     })
   } else if (project && existingProject) {
     result.analyzedItems.push({
       type: 'project',
       title: project.name,
       detail: '已关联到现有项目',
-      isNew: false
+      isNew: false,
     })
   }
 
@@ -289,7 +324,7 @@ export function applySmartEntry(
       content: buildLogContent(logText, project?.name || ''),
       categoryId,
       clientId,
-      projectId: project?.id || null
+      projectId: project?.id || null,
     })
     result.workLogs.push(log)
     result.analyzedItems.push({
@@ -298,7 +333,7 @@ export function applySmartEntry(
       detail: `记录于 ${parseDate(logText)}`,
       projectName: project?.name,
       clientName: clientName || undefined,
-      category: WORK_CATEGORIES.find(c => c.id === categoryId)?.name
+      category: WORK_CATEGORIES.find((c) => c.id === categoryId)?.name,
     })
   }
 
@@ -311,7 +346,7 @@ export function applySmartEntry(
       dueDate: parseDate(todoText),
       projectId: project?.id || null,
       planTaskId: null,
-      category: 'project'
+      category: 'project',
     })
     result.todos.push(todo)
     result.analyzedItems.push({
@@ -320,7 +355,7 @@ export function applySmartEntry(
       detail: todo.description,
       priority: todo.priority,
       dueDate: todo.dueDate,
-      projectName: project?.name
+      projectName: project?.name,
     })
   }
 
@@ -328,7 +363,8 @@ export function applySmartEntry(
   if (result.workLogs.length) parts.push('日志')
   if (result.todos.length) parts.push('待办')
   if (result.projects.length) parts.push(`新项目「${result.projects[0].name}」`)
-  if (project && !existingProject && !result.projects.length) parts.push(`关联项目「${project.name}」`)
+  if (project && !existingProject && !result.projects.length)
+    parts.push(`关联项目「${project.name}」`)
   if (clientName) parts.push(`客户「${clientName}」`)
   result.summary = parts.length ? `已记录 ${parts.join('、')}` : '已记录'
 
@@ -341,10 +377,19 @@ export function analyzeEntry(
     projectsStore: ProjectsStore
     todosStore?: TodosStore
     clientsStore?: ClientsStore
-  }
+  },
 ): PendingEntry {
   const text = rawText.trim()
-  const empty: PendingEntry = { rawText: '', projects: [], todos: [], logs: [], client: null, categoryId: 'other', analyzedItems: [], summary: '' }
+  const empty: PendingEntry = {
+    rawText: '',
+    projects: [],
+    todos: [],
+    logs: [],
+    client: null,
+    categoryId: 'other',
+    analyzedItems: [],
+    summary: '',
+  }
   if (!text) return empty
 
   const { projectsStore, clientsStore } = stores
@@ -353,7 +398,8 @@ export function analyzeEntry(
   const existingProject = projectName ? projectsStore.findProjectByName(projectName) : undefined
   const categoryId = detectCategory(text)
   const clientName = clientsStore ? detectClientName(text, clientsStore.clients) : ''
-  const existingClient = clientName && clientsStore ? clientsStore.findClientByName(clientName) : undefined
+  const existingClient =
+    clientName && clientsStore ? clientsStore.findClientByName(clientName) : undefined
 
   const result: PendingEntry = {
     rawText: text,
@@ -363,7 +409,7 @@ export function analyzeEntry(
     client: null,
     categoryId,
     analyzedItems: [],
-    summary: ''
+    summary: '',
   }
 
   if (clientName) {
@@ -372,7 +418,7 @@ export function analyzeEntry(
       type: 'client',
       title: clientName,
       detail: existingClient ? '已关联现有客户' : '将自动创建新客户',
-      isNew: !existingClient
+      isNew: !existingClient,
     })
   }
 
@@ -381,13 +427,13 @@ export function analyzeEntry(
       name: projectName,
       description: text.slice(0, 120),
       isNew: !existingProject,
-      existingId: existingProject?.id
+      existingId: existingProject?.id,
     })
     result.analyzedItems.push({
       type: 'project',
       title: projectName,
       detail: existingProject ? '已关联到现有项目' : '将自动创建新项目',
-      isNew: !existingProject
+      isNew: !existingProject,
     })
   }
 
@@ -397,7 +443,7 @@ export function analyzeEntry(
       content: buildLogContent(logText, projectName || ''),
       categoryId,
       projectName: projectName || undefined,
-      clientName: clientName || undefined
+      clientName: clientName || undefined,
     })
     result.analyzedItems.push({
       type: 'log',
@@ -405,7 +451,7 @@ export function analyzeEntry(
       detail: `记录于 ${parseDate(logText)}`,
       projectName: projectName || undefined,
       clientName: clientName || undefined,
-      category: WORK_CATEGORIES.find(c => c.id === categoryId)?.name
+      category: WORK_CATEGORIES.find((c) => c.id === categoryId)?.name,
     })
   }
 
@@ -416,7 +462,7 @@ export function analyzeEntry(
       description: todoText,
       priority,
       dueDate: parseDate(todoText),
-      projectName: projectName || undefined
+      projectName: projectName || undefined,
     })
     result.analyzedItems.push({
       type: 'todo',
@@ -424,15 +470,17 @@ export function analyzeEntry(
       detail: todoText,
       priority,
       dueDate: parseDate(todoText),
-      projectName: projectName || undefined
+      projectName: projectName || undefined,
     })
   }
 
   const parts: string[] = []
   if (result.logs.length) parts.push('日志')
   if (result.todos.length) parts.push('待办')
-  if (result.projects.length && result.projects[0].isNew) parts.push(`新项目「${result.projects[0].name}」`)
-  if (result.projects.length && !result.projects[0].isNew) parts.push(`关联项目「${result.projects[0].name}」`)
+  if (result.projects.length && result.projects[0].isNew)
+    parts.push(`新项目「${result.projects[0].name}」`)
+  if (result.projects.length && !result.projects[0].isNew)
+    parts.push(`关联项目「${result.projects[0].name}」`)
   if (clientName) parts.push(`客户「${clientName}」`)
   result.summary = parts.length ? `识别到 ${parts.join('、')}` : ''
 
@@ -446,10 +494,16 @@ export function confirmEntry(
     todosStore: TodosStore
     workLogsStore: WorkLogsStore
     clientsStore?: ClientsStore
-  }
+  },
 ): SmartEntryResult {
   const { projectsStore, todosStore, workLogsStore, clientsStore } = stores
-  const result: SmartEntryResult = { projects: [], todos: [], workLogs: [], summary: '', analyzedItems: pending.analyzedItems }
+  const result: SmartEntryResult = {
+    projects: [],
+    todos: [],
+    workLogs: [],
+    summary: '',
+    analyzedItems: pending.analyzedItems,
+  }
 
   let clientId: string | null = null
   if (pending.client && clientsStore) {
@@ -464,7 +518,7 @@ export function confirmEntry(
       lastContactDate: null,
       nextFollowUpDate: null,
       source: '',
-      notes: ''
+      notes: '',
     })
     clientId = client.id
   }
@@ -477,7 +531,7 @@ export function confirmEntry(
       status: 'planning',
       progress: 0,
       startDate: today(),
-      endDate: ''
+      endDate: '',
     })
     projectId = project.id
     result.projects.push(project)
@@ -489,7 +543,7 @@ export function confirmEntry(
       content: l.content,
       categoryId: l.categoryId,
       clientId,
-      projectId
+      projectId,
     })
     result.workLogs.push(log)
 
@@ -501,7 +555,7 @@ export function confirmEntry(
         content: l.content,
         contactPersonId: '',
         result: '已拜访',
-        nextPlan: ''
+        nextPlan: '',
       })
     }
   }
@@ -515,7 +569,7 @@ export function confirmEntry(
       dueDate: t.dueDate,
       projectId,
       planTaskId: null,
-      category: 'project'
+      category: 'project',
     })
     result.todos.push(todo)
   }
@@ -529,18 +583,27 @@ export async function analyzeEntryWithAI(
   stores: {
     projectsStore: ProjectsStore
     clientsStore?: ClientsStore
-  }
+  },
 ): Promise<PendingEntry> {
   const text = rawText.trim()
-  const empty: PendingEntry = { rawText: '', projects: [], todos: [], logs: [], client: null, categoryId: 'other', analyzedItems: [], summary: '' }
+  const empty: PendingEntry = {
+    rawText: '',
+    projects: [],
+    todos: [],
+    logs: [],
+    client: null,
+    categoryId: 'other',
+    analyzedItems: [],
+    summary: '',
+  }
   if (!text) return empty
 
   const { projectsStore, clientsStore } = stores
-  const existingProjectNames = projectsStore.projects.map(p => p.name).join('、')
-  const existingClientNames = clientsStore ? clientsStore.clients.map(c => c.name).join('、') : ''
+  const existingProjectNames = projectsStore.projects.map((p) => p.name).join('、')
+  const existingClientNames = clientsStore ? clientsStore.clients.map((c) => c.name).join('、') : ''
 
   const today = new Date().toISOString().split('T')[0]
-  const categoryList = WORK_CATEGORIES.map(c => `  - ${c.id}: ${c.name}`).join('\n')
+  const categoryList = WORK_CATEGORIES.map((c) => `  - ${c.id}: ${c.name}`).join('\n')
 
   const prompt = `你是一个工作日志智能分析助手。请分析以下用户输入的工作内容，提取结构化信息。
 
@@ -580,10 +643,34 @@ ${text}
 
   const response = await chatWithAI([{ role: 'user', content: prompt }])
 
-  let parsed: any
+  /** AI 返回 JSON 的结构化类型（字段均为可选，来自模型输出） */
+  interface AiParsed {
+    logs?: {
+      content?: string
+      categoryId?: string
+      projectName?: string
+      clientName?: string
+      date?: string
+    }[]
+    todos?: {
+      title?: string
+      description?: string
+      priority?: string
+      dueDate?: string
+      projectName?: string
+    }[]
+    projects?: { name?: string; description?: string; isNew?: boolean }[]
+    client?: { name?: string; isNew?: boolean } | null
+    summary?: string
+  }
+
+  let parsed: AiParsed
   try {
-    const jsonStr = response.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim()
-    parsed = JSON.parse(jsonStr)
+    const jsonStr = response
+      .replace(/```json?\s*/g, '')
+      .replace(/```\s*/g, '')
+      .trim()
+    parsed = JSON.parse(jsonStr) as AiParsed
   } catch {
     return analyzeEntry(rawText, stores)
   }
@@ -596,46 +683,50 @@ ${text}
     client: null,
     categoryId: 'other',
     analyzedItems: [],
-    summary: ''
+    summary: '',
   }
 
   if (parsed.client && parsed.client.name) {
-    const existingClient = clientsStore ? clientsStore.findClientByName(parsed.client.name) : undefined
+    const existingClient = clientsStore
+      ? clientsStore.findClientByName(parsed.client.name)
+      : undefined
     result.client = { name: parsed.client.name, isNew: !existingClient }
     result.analyzedItems.push({
       type: 'client',
       title: parsed.client.name,
       detail: existingClient ? '已关联现有客户' : '将自动创建新客户',
-      isNew: !existingClient
+      isNew: !existingClient,
     })
   }
 
-  for (const p of (parsed.projects || [])) {
+  for (const p of parsed.projects || []) {
     if (!p.name) continue
     const existing = projectsStore.findProjectByName(p.name)
     result.projects.push({
       name: p.name,
       description: p.description || text.slice(0, 120),
       isNew: !existing,
-      existingId: existing?.id
+      existingId: existing?.id,
     })
     result.analyzedItems.push({
       type: 'project',
       title: p.name,
       detail: existing ? '已关联到现有项目' : '将自动创建新项目',
-      isNew: !existing
+      isNew: !existing,
     })
   }
 
   const projectName = result.projects.length ? result.projects[0].name : ''
-  for (const l of (parsed.logs || [])) {
-    const catId = (WORK_CATEGORIES.some(c => c.id === l.categoryId) ? l.categoryId : 'other') as WorkCategoryId
+  for (const l of parsed.logs || []) {
+    const catId = (
+      WORK_CATEGORIES.some((c) => c.id === l.categoryId) ? l.categoryId : 'other'
+    ) as WorkCategoryId
     result.logs.push({
       date: l.date || today,
       content: l.content || text,
       categoryId: catId,
       projectName: l.projectName || projectName || undefined,
-      clientName: l.clientName || parsed.client?.name || undefined
+      clientName: l.clientName || parsed.client?.name || undefined,
     })
     result.analyzedItems.push({
       type: 'log',
@@ -643,20 +734,21 @@ ${text}
       detail: `记录于 ${l.date || today}`,
       projectName: l.projectName || projectName || undefined,
       clientName: l.clientName || parsed.client?.name || undefined,
-      category: WORK_CATEGORIES.find(c => c.id === catId)?.name
+      category: WORK_CATEGORIES.find((c) => c.id === catId)?.name,
     })
     if (!result.categoryId || result.categoryId === 'other') result.categoryId = catId
   }
 
-  for (const t of (parsed.todos || [])) {
+  for (const t of parsed.todos || []) {
     if (!t.title) continue
-    const priority = ['high', 'medium', 'low'].includes(t.priority) ? t.priority : 'medium'
+    const rawPriority = t.priority || 'medium'
+    const priority = ['high', 'medium', 'low'].includes(rawPriority) ? rawPriority : 'medium'
     result.todos.push({
       title: t.title,
       description: t.description || t.title,
       priority,
       dueDate: t.dueDate || today,
-      projectName: t.projectName || projectName || undefined
+      projectName: t.projectName || projectName || undefined,
     })
     result.analyzedItems.push({
       type: 'todo',
@@ -664,7 +756,7 @@ ${text}
       detail: t.description || t.title,
       priority,
       dueDate: t.dueDate || today,
-      projectName: t.projectName || projectName || undefined
+      projectName: t.projectName || projectName || undefined,
     })
   }
 
@@ -676,13 +768,13 @@ ${text}
       content: text,
       categoryId: result.categoryId || 'other',
       projectName: projectName || undefined,
-      clientName: parsed.client?.name || undefined
+      clientName: parsed.client?.name || undefined,
     })
     result.analyzedItems.push({
       type: 'log',
       title: text.slice(0, 40) + (text.length > 40 ? '…' : ''),
       detail: `记录于 ${today}`,
-      category: WORK_CATEGORIES.find(c => c.id === result.categoryId)?.name
+      category: WORK_CATEGORIES.find((c) => c.id === result.categoryId)?.name,
     })
   }
 

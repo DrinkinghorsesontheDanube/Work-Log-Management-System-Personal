@@ -23,7 +23,7 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
   }
 
   function updateWorkLog(id: string, updates: Partial<WorkLog>) {
-    const index = workLogs.value.findIndex(w => w.id === id)
+    const index = workLogs.value.findIndex((w) => w.id === id)
     if (index !== -1) {
       workLogs.value[index] = touchEntity(workLogs.value[index], updates)
       saveWorkLogs()
@@ -31,16 +31,16 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
   }
 
   function deleteWorkLog(id: string) {
-    workLogs.value = workLogs.value.filter(w => w.id !== id)
+    workLogs.value = workLogs.value.filter((w) => w.id !== id)
     saveWorkLogs()
   }
 
   function getWorkLogByDate(date: string) {
-    return workLogs.value.find(w => w.date === date)
+    return workLogs.value.find((w) => w.date === date)
   }
 
   function getWorkLogsByProjectId(projectId: string) {
-    return workLogs.value.filter(w => w.projectId === projectId)
+    return workLogs.value.filter((w) => w.projectId === projectId)
   }
 
   const last7DaysStats = computed(() => {
@@ -49,7 +49,7 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
       const date = new Date()
       date.setDate(date.getDate() - i)
       const dateStr = date.toISOString().split('T')[0]
-      stats[dateStr] = workLogs.value.filter(w => w.date === dateStr).length
+      stats[dateStr] = workLogs.value.filter((w) => w.date === dateStr).length
     }
     return stats
   })
@@ -72,6 +72,6 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
     getWorkLogByDate,
     getWorkLogsByProjectId,
     last7DaysStats,
-    categoryStats
+    categoryStats,
   }
 })

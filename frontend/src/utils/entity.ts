@@ -13,7 +13,7 @@ export function createEntity<T extends object>(data: T, prefix = '') {
     ...data,
     id: createId(prefix),
     createdAt: timestamp,
-    updatedAt: timestamp
+    updatedAt: timestamp,
   }
 }
 
@@ -21,6 +21,6 @@ export function touchEntity<T extends object>(entity: T, updates: Partial<T>) {
   return {
     ...entity,
     ...updates,
-    updatedAt: nowIso()
+    updatedAt: nowIso(),
   }
 }
