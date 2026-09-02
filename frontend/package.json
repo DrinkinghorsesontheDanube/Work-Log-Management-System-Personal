@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@vicons/ionicons5": "^0.13.0",
+    "dompurify": "^3.4.14",
     "echarts": "^6.1.0",
     "marked": "^18.0.5",
     "naive-ui": "^2.44.1",

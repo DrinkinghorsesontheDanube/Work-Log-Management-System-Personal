@@ -4,6 +4,7 @@ import { useTodosStore } from '../stores/todos'
 import { useProjectsStore } from '../stores/projects'
 import ConfirmModal from '../components/ConfirmModal.vue'
 import TodoCategoryIcon from '../components/TodoCategoryIcon.vue'
+import { addDaysStr, fmtDate, mondayOf, todayStr } from '../utils/date'
 import type { Todo, TodoCategoryId } from '../types'
 import { TODO_CATEGORIES } from '../types'
 
@@ -68,19 +69,16 @@ function getProjectName(id: string | null) {
 }
 
 function getTodayStr() {
-  return new Date().toISOString().split('T')[0]
+  return todayStr()
 }
 
 function getWeekDates() {
-  const now = new Date()
-  const day = now.getDay() || 7
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - day + 1)
+  const monday = mondayOf()
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() + 6)
   return {
-    start: monday.toISOString().split('T')[0],
-    end: sunday.toISOString().split('T')[0]
+    start: fmtDate(monday),
+    end: fmtDate(sunday)
   }
 }
 
@@ -147,9 +145,7 @@ function formatDueDate(date: string): string {
   if (!date) return ''
   const today = getTodayStr()
   if (date === today) return '今天'
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  if (date === tomorrow.toISOString().split('T')[0]) return '明天'
+  if (date === addDaysStr(1)) return '明天'
   const parts = date.split('-')
   return `${parseInt(parts[1])}/${parseInt(parts[2])}`
 }
@@ -539,15 +535,15 @@ onMounted(() => {
             <button class="card-delete" @click.stop="removeTodo(todo.id)" title="删除">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
-            <button
-              v-if="group.key === 'completed' && hiddenCompletedCount > 0"
-              class="col-more"
-              @click="expandCompleted = !expandCompleted"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline v-if="!expandCompleted" points="6 9 12 15 18 9"/><polyline v-else points="18 15 12 9 6 15"/></svg>
-              {{ expandCompleted ? '收起' : `展开全部 ${hiddenCompletedCount} 条更早记录` }}
-            </button>
           </div>
+          <button
+            v-if="group.key === 'completed' && hiddenCompletedCount > 0"
+            class="col-more"
+            @click="expandCompleted = !expandCompleted"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline v-if="!expandCompleted" points="6 9 12 15 18 9"/><polyline v-else points="18 15 12 9 6 15"/></svg>
+            {{ expandCompleted ? '收起' : `展开全部 ${hiddenCompletedCount} 条更早记录` }}
+          </button>
         </div>
       </template>
     </template>

@@ -138,7 +138,7 @@ const filteredClients = computed(() => {
       c.contacts.some(ct =>
         ct.name.toLowerCase().includes(q) ||
         ct.department.toLowerCase().includes(q) ||
-        roleLabel[ct.role].includes(q)
+        (roleLabel[ct.role] || roleLabel.executor).toLowerCase().includes(q)
       )
     )
   }
@@ -209,8 +209,9 @@ function save() {
       ...c,
       isPrimary: arr.some(x => x.isPrimary) ? c.isPrimary : i === 0
     }))
-  if (contacts.length === 0) {
-    contacts.push({ ...formContacts.value[0], isPrimary: true })
+  // 全部联系人未填姓名时，保留第一位作为主要联系人，避免客户没有联系人
+  if (contacts.length === 0 && formContacts.value.length > 0) {
+    contacts.push({ ...formContacts.value[0], name: '未命名', isPrimary: true })
   }
   const data = {
     name: formName.value,

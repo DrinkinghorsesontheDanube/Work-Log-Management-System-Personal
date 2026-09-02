@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { WorkLog } from '../types'
 import { storage } from '../utils/storage'
 import { createEntity, touchEntity } from '../utils/entity'
+import { addDaysStr } from '../utils/date'
 
 export const useWorkLogsStore = defineStore('workLogs', () => {
   const workLogs = ref<WorkLog[]>([])
@@ -35,6 +36,26 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
     saveWorkLogs()
   }
 
+  /** 级联：删除项目时清理其下所有日志 */
+  function deleteByProjectId(projectId: string) {
+    const before = workLogs.value.length
+    workLogs.value = workLogs.value.filter((w) => w.projectId !== projectId)
+    if (workLogs.value.length !== before) saveWorkLogs()
+  }
+
+  /** 级联：删除客户时解除日志上的客户关联（日志本身保留） */
+  function clearClientRefs(clientId: string) {
+    let changed = false
+    workLogs.value = workLogs.value.map((w) => {
+      if (w.clientId === clientId) {
+        changed = true
+        return touchEntity(w, { clientId: null })
+      }
+      return w
+    })
+    if (changed) saveWorkLogs()
+  }
+
   function getWorkLogByDate(date: string) {
     return workLogs.value.find((w) => w.date === date)
   }
@@ -46,9 +67,7 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
   const last7DaysStats = computed(() => {
     const stats: Record<string, number> = {}
     for (let i = 6; i >= 0; i--) {
-      const date = new Date()
-      date.setDate(date.getDate() - i)
-      const dateStr = date.toISOString().split('T')[0]
+      const dateStr = addDaysStr(-i)
       stats[dateStr] = workLogs.value.filter((w) => w.date === dateStr).length
     }
     return stats
@@ -69,6 +88,8 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
     addWorkLog,
     updateWorkLog,
     deleteWorkLog,
+    deleteByProjectId,
+    clearClientRefs,
     getWorkLogByDate,
     getWorkLogsByProjectId,
     last7DaysStats,

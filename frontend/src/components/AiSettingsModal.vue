@@ -108,6 +108,8 @@ function clearAiConfig() {
   showApiKey.value = false
   saved.value = false
   refreshAiStatus()
+  // 与 saveAiConfig 保持一致，通知其他页面（如工作台）刷新 AI 配置状态
+  window.dispatchEvent(new CustomEvent('ai-config-changed'))
 }
 
 async function doTestConnection() {

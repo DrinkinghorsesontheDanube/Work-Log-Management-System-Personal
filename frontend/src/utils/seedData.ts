@@ -1,5 +1,6 @@
 import type { Client, Project, WorkLog, Todo, PhaseRecord, PlanTask, Report } from '../types'
 import { storage } from './storage'
+import { addDaysStr } from './date'
 
 function id(prefix: string, n: number) {
   return `${prefix}_seed_${String(n).padStart(3, '0')}`
@@ -10,9 +11,7 @@ function iso(dateStr: string) {
 }
 
 function daysAgo(n: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().split('T')[0]
+  return addDaysStr(-n)
 }
 
 function makePhaseHistory(phases: [string, number, string?][]): PhaseRecord[] {

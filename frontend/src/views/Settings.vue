@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useMessage } from 'naive-ui'
 import { useProjectsStore } from '../stores/projects'
 import { useTodosStore } from '../stores/todos'
@@ -50,14 +50,18 @@ const providerDescs: Record<string, string> = {
   custom: '自定义兼容 OpenAI 协议的服务'
 }
 
-const aiStatus = computed(() => {
+// localStorage 不是响应式来源，改用显式刷新的状态：保存/清除/外部弹窗修改配置后都调 refreshAiStatus
+const aiStatus = ref<{ configured: boolean; name: string }>({ configured: false, name: '' })
+
+function refreshAiStatus() {
   const saved = storage.getAiProvider()
   if (saved && saved.apiKey) {
     const name = providerTemplates.find(p => p.id === saved.id)?.name || saved.id
-    return { configured: true, name }
+    aiStatus.value = { configured: true, name }
+  } else {
+    aiStatus.value = { configured: false, name: '' }
   }
-  return { configured: false, name: '' }
-})
+}
 
 const clientCount = computed(() => clientsStore.clients.length)
 const projectCount = computed(() => projectsStore.projects.length)
@@ -98,6 +102,7 @@ function saveAiConfig() {
     enabled: true
   }
   storage.saveAiProvider(provider)
+  refreshAiStatus()
   message.success('AI 配置已保存')
 }
 
@@ -105,6 +110,7 @@ function clearAiConfig() {
   storage.saveAiProvider(null)
   apiKey.value = ''
   testResult.value = null
+  refreshAiStatus()
   message.success('AI 配置已清除')
 }
 
@@ -229,7 +235,10 @@ function importData(event: Event) {
       projectsStore.loadPhases()
       todosStore.loadTodos()
       workLogsStore.loadWorkLogs()
+      clientsStore.loadClients()
       aiStore.loadMessages()
+      loadAiConfig()
+      refreshAiStatus()
       message.success('数据已导入')
     } catch {
       message.error('导入失败，请检查文件格式')
@@ -245,13 +254,14 @@ function confirmClearAllData() {
 
 function doClearAllData() {
   storage.clearAllData()
-  localStorage.removeItem('worklog_seeded')
+  // 不清除 worklog_seeded_v11 标记：避免下次启动又自动灌入演示数据
   projectsStore.loadProjects()
   projectsStore.loadPhases()
   todosStore.loadTodos()
   workLogsStore.loadWorkLogs()
   clientsStore.loadClients()
   aiStore.clearMessages()
+  refreshAiStatus()
   message.success('数据已清空')
 }
 
@@ -261,22 +271,29 @@ function confirmLoadDemoData() {
 
 function doLoadDemoData() {
   seedAllData()
-  localStorage.setItem('worklog_seeded', '1')
   projectsStore.loadProjects()
   projectsStore.loadPhases()
   todosStore.loadTodos()
   workLogsStore.loadWorkLogs()
   clientsStore.loadClients()
+  refreshAiStatus()
   message.success('演示数据已加载')
 }
 
 onMounted(() => {
   loadAiConfig()
+  refreshAiStatus()
   projectsStore.loadPhases()
   projectsStore.loadProjects()
   clientsStore.loadClients()
   todosStore.loadTodos()
   workLogsStore.loadWorkLogs()
+  // AI 配置弹窗在其他页面保存/清除时会广播此事件
+  window.addEventListener('ai-config-changed', refreshAiStatus)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('ai-config-changed', refreshAiStatus)
 })
 </script>
 

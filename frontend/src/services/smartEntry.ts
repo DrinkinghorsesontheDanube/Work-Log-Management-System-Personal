@@ -5,6 +5,7 @@ import type { useTodosStore } from '../stores/todos'
 import type { useWorkLogsStore } from '../stores/workLogs'
 import type { useClientsStore } from '../stores/clients'
 import { chatWithAI } from './aiService'
+import { addDaysStr, todayStr } from '../utils/date'
 
 type ProjectsStore = ReturnType<typeof useProjectsStore>
 type TodosStore = ReturnType<typeof useTodosStore>
@@ -71,13 +72,11 @@ export interface PendingEntry {
 }
 
 function today() {
-  return new Date().toISOString().split('T')[0]
+  return todayStr()
 }
 
 function addDays(days: number) {
-  const date = new Date()
-  date.setDate(date.getDate() + days)
-  return date.toISOString().split('T')[0]
+  return addDaysStr(days)
 }
 
 function parseDate(text: string): string {
@@ -265,6 +264,8 @@ export function applySmartEntry(
   const clientName = clientsStore ? detectClientName(text, clientsStore.clients) : ''
   let clientId: string | null = null
   if (clientName && clientsStore) {
+    // 必须在创建前判断是否存在，否则 ensureClient 之后的检查永远是"已存在"
+    const existedBefore = !!clientsStore.findClientByName(clientName)
     const client = clientsStore.ensureClient({
       name: clientName,
       type: 'government',
@@ -279,7 +280,7 @@ export function applySmartEntry(
       notes: '',
     })
     clientId = client.id
-    if (!clientsStore.findClientByName(clientName)) {
+    if (!existedBefore) {
       result.analyzedItems.push({
         type: 'client',
         title: clientName,
@@ -602,7 +603,7 @@ export async function analyzeEntryWithAI(
   const existingProjectNames = projectsStore.projects.map((p) => p.name).join('、')
   const existingClientNames = clientsStore ? clientsStore.clients.map((c) => c.name).join('、') : ''
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayStr()
   const categoryList = WORK_CATEGORIES.map((c) => `  - ${c.id}: ${c.name}`).join('\n')
 
   const prompt = `你是一个工作日志智能分析助手。请分析以下用户输入的工作内容，提取结构化信息。

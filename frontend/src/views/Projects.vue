@@ -6,6 +6,7 @@ import { useClientsStore } from '../stores/clients'
 import { useTodosStore } from '../stores/todos'
 import { useWorkLogsStore } from '../stores/workLogs'
 import ConfirmModal from '../components/ConfirmModal.vue'
+import { todayStr } from '../utils/date'
 import type { Project, ProjectPhase } from '../types'
 
 const router = useRouter()
@@ -219,7 +220,7 @@ function openAdd() {
   formProgress.value = 0
   formStatus.value = 'planning'
   formPhaseId.value = sortedPhases.value[0]?.id || ''
-  formStartDate.value = new Date().toISOString().split('T')[0]
+  formStartDate.value = todayStr()
   formEndDate.value = ''
   formClientId.value = null
   formClientLeaderId.value = null
@@ -275,7 +276,7 @@ function save() {
       currentPhaseId: formPhaseId.value,
       phaseHistory: [{
         phaseId: formPhaseId.value,
-        startDate: new Date().toISOString().split('T')[0],
+        startDate: todayStr(),
         endDate: null,
         note: '项目创建'
       }],

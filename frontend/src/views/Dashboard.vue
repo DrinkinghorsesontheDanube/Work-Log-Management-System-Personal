@@ -10,6 +10,7 @@ import type { PendingEntry } from '../services/smartEntry'
 import { WORK_CATEGORIES } from '../types'
 import type { Todo } from '../types'
 import { isAiConfigured } from '../services/aiService'
+import { addDaysStr, fmtDate, mondayOf, todayStr } from '../utils/date'
 
 const router = useRouter()
 const route = useRoute()
@@ -41,21 +42,19 @@ const todoCount = computed(() => todosStore.todos.length)
 const pendingTodoCount = computed(() => todosStore.todos.filter(t => t.status !== 'completed').length)
 const activeProjects = computed(() => projectsStore.projects.filter(p => p.status === 'in_progress'))
 
-const today = new Date().toISOString().split('T')[0]
+const today = () => todayStr()
 const overdueTodos = computed(() =>
-  todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate < today)
+  todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate < today())
     .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''))
 )
 const todayTodos = computed(() =>
-  todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate === today)
+  todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate === today())
 )
 const upcomingTodos = computed(() => {
-  const now = new Date()
-  const day = now.getDay() || 7
-  const mon = new Date(now); mon.setDate(now.getDate() - day + 1)
-  const sun = new Date(now); sun.setDate(now.getDate() - day + 7)
-  const mStr = mon.toISOString().split('T')[0]
-  const sStr = sun.toISOString().split('T')[0]
+  const mon = mondayOf()
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+  const mStr = fmtDate(mon)
+  const sStr = fmtDate(sun)
   return todosStore.todos.filter(t =>
     t.dueDate && t.dueDate >= mStr && t.dueDate <= sStr
   ).sort((a, b) => {
@@ -70,8 +69,8 @@ const nextWeekTodos = computed(() => {
   const day = now.getDay() || 7
   const nextMon = new Date(now); nextMon.setDate(now.getDate() - day + 8)
   const nextSun = new Date(now); nextSun.setDate(now.getDate() - day + 14)
-  const nmStr = nextMon.toISOString().split('T')[0]
-  const nsStr = nextSun.toISOString().split('T')[0]
+  const nmStr = fmtDate(nextMon)
+  const nsStr = fmtDate(nextSun)
   return todosStore.todos.filter(t =>
     t.status !== 'completed' && t.dueDate && t.dueDate >= nmStr && t.dueDate <= nsStr
   ).concat(
@@ -89,10 +88,8 @@ function toggleTodoStatus(todo: Todo) {
 }
 
 function friendlyDate(dateStr: string) {
-  if (dateStr === today) return '今天'
-  const d = new Date(today)
-  d.setDate(d.getDate() + 1)
-  if (dateStr === d.toISOString().split('T')[0]) return '明天'
+  if (dateStr === today()) return '今天'
+  if (dateStr === addDaysStr(1)) return '明天'
   return dateStr.slice(5).replace('-', '/')
 }
 
@@ -119,6 +116,7 @@ function getProjectName(id: string | null) {
 const aiAnalyzing = ref(false)
 
 async function handleAnalyze() {
+  if (aiAnalyzing.value) return
   const text = aiInput.value.trim()
   if (!text) return
   confirmed.value = false

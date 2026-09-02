@@ -101,6 +101,7 @@ export const storage = {
     localStorage.setItem(STORAGE_KEYS.planTasks, JSON.stringify(tasks))
   },
   exportAllData(): string {
+    const provider = this.getAiProvider()
     const data = {
       projects: this.getProjects(),
       todos: this.getTodos(),
@@ -109,7 +110,8 @@ export const storage = {
       reports: this.getReports(),
       planTasks: this.getPlanTasks(),
       aiMessages: this.getAiMessages(),
-      aiProvider: this.getAiProvider(),
+      // 备份文件可能被转发分享，不导出明文 apiKey（导入时会自动沿用本机已保存的 Key）
+      aiProvider: provider ? { ...provider, apiKey: '' } : null,
       projectPhases: this.getProjectPhases(),
       exportTime: new Date().toISOString(),
     }
@@ -123,7 +125,14 @@ export const storage = {
     if (data.reports) this.saveReports(data.reports as Report[])
     if (data.planTasks) this.savePlanTasks(data.planTasks as PlanTask[])
     if (data.aiMessages) this.saveAiMessages(data.aiMessages as AiMessage[])
-    if (data.aiProvider) this.saveAiProvider(data.aiProvider as AiProvider)
+    if (data.aiProvider) {
+      const imported = data.aiProvider as AiProvider
+      if (!imported.apiKey) {
+        const current = this.getAiProvider()
+        if (current?.apiKey) imported.apiKey = current.apiKey
+      }
+      this.saveAiProvider(imported)
+    }
     if (data.projectPhases) this.saveProjectPhases(data.projectPhases as ProjectPhase[])
   },
   clearAllData() {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, inject } from 'vue'
+import { ref, onMounted, computed, watch, inject, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '../stores/projects'
 import { useTodosStore } from '../stores/todos'
@@ -8,6 +8,7 @@ import { useClientsStore } from '../stores/clients'
 import { storage } from '../utils/storage'
 import { chatWithAI, isAiConfigured } from '../services/aiService'
 import { addWorkingDays, calcWorkingDays } from '../utils/workdays'
+import { todayStr } from '../utils/date'
 import GanttChart from '../components/GanttChart.vue'
 import type { Project, PlanTask } from '../types'
 
@@ -35,9 +36,16 @@ const editManager = ref('')
 const editClientId = ref<string | null>(null)
 const editClientLeaderId = ref<string | null>(null)
 const editClientExecutorId = ref<string | null>(null)
-const editProgress = ref(0)
 
-watch(editClientId, () => {
+// openEditProject 会同步回填 clientId，随后本 watch 才异步触发；
+// 用 programmaticClientId 标记程序赋值，避免打开弹窗时把刚回填的联系人清空
+let programmaticClientId: string | null | undefined = undefined
+
+watch(editClientId, (newVal) => {
+  if (programmaticClientId !== undefined && newVal === programmaticClientId) {
+    programmaticClientId = undefined
+    return
+  }
   editClientLeaderId.value = null
   editClientExecutorId.value = null
 })
@@ -212,16 +220,19 @@ function syncProgressFromTodos(taskId: string) {
   }
 }
 
-function daysUntil(endDate: string): number {
+function daysUntil(endDate: string): number | null {
+  if (!endDate) return null
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const end = new Date(endDate + 'T00:00:00')
+  if (Number.isNaN(end.getTime())) return null
   return Math.ceil((end.getTime() - today.getTime()) / 86400000)
 }
 
 function getTaskDeadlineLevel(task: PlanTask): 'normal' | 'warning' | 'urgent' | 'overdue' {
   if (task.status === 'completed') return 'normal'
   const days = daysUntil(task.endDate)
+  if (days === null) return 'normal'
   if (days < 0) return 'overdue'
   if (days <= 3) return 'urgent'
   if (days <= 7) return 'warning'
@@ -231,6 +242,7 @@ function getTaskDeadlineLevel(task: PlanTask): 'normal' | 'warning' | 'urgent' |
 function getTaskCountdown(task: PlanTask): string {
   if (task.status === 'completed') return '已完成'
   const days = daysUntil(task.endDate)
+  if (days === null) return '待排期'
   if (days < 0) return `逾期${Math.abs(days)}天`
   if (days === 0) return '今天截止'
   if (days === 1) return '明天截止'
@@ -239,8 +251,8 @@ function getTaskCountdown(task: PlanTask): string {
 
 const deadlineWarnings = computed(() => {
   return projectPlanTasks.value
-    .filter(t => t.status !== 'completed' && daysUntil(t.endDate) <= 3)
-    .sort((a, b) => daysUntil(a.endDate) - daysUntil(b.endDate))
+    .filter(t => t.status !== 'completed' && t.endDate && (daysUntil(t.endDate) ?? 99) <= 3)
+    .sort((a, b) => (daysUntil(a.endDate) ?? 99) - (daysUntil(b.endDate) ?? 99))
 })
 
 function loadPlanTasks() {
@@ -257,7 +269,7 @@ function loadPlanTasks() {
         projectId: project.value!.id,
         parentId: null,
         name: phase.name,
-        startDate: project.value!.startDate || now.toISOString().split('T')[0],
+        startDate: project.value!.startDate || todayStr(),
         endDate: '',
         duration: 0,
         includeHolidays: false,
@@ -323,7 +335,7 @@ function openEditPlan(task: PlanTask) {
 function savePlan() {
   if (!planName.value.trim() || !project.value) return
   const now = new Date().toISOString()
-  const today = now.split('T')[0]
+  const today = todayStr()
   const autoProgress = planStatus.value === 'completed' ? 100 : planProgress.value
 
   let actualStart = planActualStart.value || editingPlan.value?.actualStartDate || null
@@ -333,6 +345,8 @@ function savePlan() {
     if (!actualStart) actualStart = today
     if (!actualEnd) actualEnd = today
   }
+
+  const oldParentId = editingPlan.value?.parentId ?? null
 
   if (editingPlan.value) {
     const idx = planTasks.value.findIndex(t => t.id === editingPlan.value!.id)
@@ -371,9 +385,12 @@ function savePlan() {
       updatedAt: now
     })
   }
-  const parentId = editingPlan.value?.parentId ?? planParentId.value
-  recalcParentProgress(parentId)
+  // 任务可能换了父任务，新旧父任务都要重算
+  const newParentId = planParentId.value
+  recalcParentProgress(newParentId)
+  if (oldParentId && oldParentId !== newParentId) recalcParentProgress(oldParentId)
   storage.savePlanTasks(planTasks.value)
+  syncProjectProgress()
   showPlanModal.value = false
 }
 
@@ -446,11 +463,29 @@ function deletePlan(id: string) {
 
 function onConfirmOk() {
   confirmVisible.value = false
-  if (pendingDeleteId.value) {
-    planTasks.value = planTasks.value.filter(t => t.id !== pendingDeleteId.value && t.parentId !== pendingDeleteId.value)
-    storage.savePlanTasks(planTasks.value)
+  const id = pendingDeleteId.value
+  if (!id) return
+  const rootTask = planTasks.value.find(t => t.id === id)
+  if (!rootTask) {
     pendingDeleteId.value = null
+    return
   }
+  // 递归收集任务及其所有层级的子任务
+  const removedIds: string[] = []
+  const collect = (taskId: string) => {
+    removedIds.push(taskId)
+    planTasks.value.filter(t => t.parentId === taskId).forEach(child => collect(child.id))
+  }
+  collect(id)
+  planTasks.value = planTasks.value.filter(t => !removedIds.includes(t.id))
+  // 解除待办上的悬挂引用
+  todosStore.clearPlanTaskRefs(removedIds)
+  storage.savePlanTasks(planTasks.value)
+  // 重算被删任务的原父任务，并同步项目进度
+  recalcParentProgress(rootTask.parentId)
+  storage.savePlanTasks(planTasks.value)
+  syncProjectProgress()
+  pendingDeleteId.value = null
 }
 function onConfirmCancel() { confirmVisible.value = false; pendingDeleteId.value = null }
 
@@ -729,11 +764,15 @@ function openEditProject() {
   editEndDate.value = project.value.endDate
   editBudget.value = project.value.budget
   editManager.value = project.value.manager
+  programmaticClientId = project.value.clientId
   editClientId.value = project.value.clientId
   editClientLeaderId.value = project.value.clientLeaderId
   editClientExecutorId.value = project.value.clientExecutorId
-  editProgress.value = project.value.progress
   showEditModal.value = true
+  // watch 是 pre-flush：此刻已触发过（若有变化），标志可以安全清除
+  nextTick(() => {
+    programmaticClientId = undefined
+  })
 }
 
 function saveEditProject() {

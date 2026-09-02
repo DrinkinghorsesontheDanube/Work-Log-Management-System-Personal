@@ -6,6 +6,7 @@ import { useProjectsStore } from '../stores/projects'
 import { useWorkLogsStore } from '../stores/workLogs'
 import type { Client, ContactPerson, VisitRecord, Project, WorkLog } from '../types'
 import { WORK_CATEGORIES } from '../types'
+import { todayStr } from '../utils/date'
 
 const route = useRoute()
 const router = useRouter()
@@ -285,8 +286,8 @@ function confirmDeleteContact(contactId: string) {
 
 function deleteContact(contactId: string) {
   if (!client.value) return
-  const contacts = client.value.contacts.filter(c => c.id !== contactId)
-  clientsStore.updateClient(client.value.id, { contacts })
+  // store 内部会转移"主要联系人"，并解除项目上的负责人/经办人引用、拜访记录上的联系人引用
+  clientsStore.removeContact(client.value.id, contactId)
   client.value = clientsStore.getClientById(client.value.id) || null
 }
 
@@ -298,7 +299,7 @@ function onVisitContactSelect() {
 }
 
 function openAddVisit() {
-  visitDate.value = new Date().toISOString().split('T')[0]
+  visitDate.value = todayStr()
   visitContact.value = ''
   visitContactPersonId.value = ''
   visitContent.value = ''

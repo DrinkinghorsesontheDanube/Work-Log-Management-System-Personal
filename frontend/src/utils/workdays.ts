@@ -1,3 +1,5 @@
+import { fmtDate } from './date'
+
 const WEEKEND_DAYS = [0, 6]
 
 const HOLIDAYS_2026: Record<string, string[]> = {
@@ -42,18 +44,30 @@ const WORKDAYS_OVERRIDE: Record<string, string[]> = {
   '2026': ['2026-01-04', '2026-02-14', '2026-02-28', '2026-05-09', '2026-09-20', '2026-10-10'],
 }
 
+const WARNED_YEARS = new Set<string>()
+
 function fmt(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return fmtDate(d)
 }
 
 function isInList(dateStr: string, list: string[]): boolean {
   return list.includes(dateStr)
 }
 
+function hasHolidayData(year: string): boolean {
+  return year in HOLIDAYS_2026
+}
+
 export function isHoliday(date: Date): boolean {
   const dateStr = fmt(date)
   const year = date.getFullYear().toString()
   const holidays = HOLIDAYS_2026[year] || []
+  if (!hasHolidayData(year) && !WARNED_YEARS.has(year)) {
+    WARNED_YEARS.add(year)
+    console.warn(
+      `[workdays] ${year} 年节假日数据未维护，排期计算将只按周末 + 调休判断，请在 utils/workdays.ts 中补充。`,
+    )
+  }
   return isInList(dateStr, holidays)
 }
 

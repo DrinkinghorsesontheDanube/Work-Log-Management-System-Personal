@@ -9,6 +9,8 @@ import type { WorkLog, WorkCategoryId, Report } from '../types'
 import { storage } from '../utils/storage'
 import { chatWithAI, isAiConfigured } from '../services/aiService'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
+import { formatDateTime, todayStr } from '../utils/date'
 
 const workLogsStore = useWorkLogsStore()
 const showAiConfigPrompt = inject<() => void>('showAiConfigPrompt', () => {})
@@ -17,7 +19,7 @@ const clientsStore = useClientsStore()
 const todosStore = useTodosStore()
 
 const currentDate = ref(new Date())
-const selectedDate = ref(new Date().toISOString().split('T')[0])
+const selectedDate = ref(todayStr())
 const showModal = ref(false)
 const logContent = ref('')
 const selectedProjectId = ref<string | null>(null)
@@ -150,7 +152,7 @@ function nextMonth() {
 
 function goToday() {
   currentDate.value = new Date()
-  selectedDate.value = new Date().toISOString().split('T')[0]
+  selectedDate.value = todayStr()
 }
 
 function selectDate(dateStr: string) {
@@ -221,7 +223,8 @@ const previewMode = ref(true)
 
 const renderedHtml = computed(() => {
   if (!reportContent.value) return ''
-  return marked.parse(reportContent.value) as string
+  // AI 输出/手动编辑/导入的历史报告都可能含恶意 HTML，必须消毒后再 v-html
+  return DOMPurify.sanitize(marked.parse(reportContent.value) as string)
 })
 
 function buildLocalReport(): string {
@@ -259,10 +262,10 @@ function buildLocalReport(): string {
   const day = now.getDay() || 7
   const nextMon = new Date(now); nextMon.setDate(now.getDate() - day + 8)
   const nextSun = new Date(now); nextSun.setDate(now.getDate() - day + 14)
-  const nmStr = nextMon.toISOString().split('T')[0]
-  const nsStr = nextSun.toISOString().split('T')[0]
+  const nmStr = fmt(nextMon)
+  const nsStr = fmt(nextSun)
 
-  const overdue = todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate < now.toISOString().split('T')[0])
+  const overdue = todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate < todayStr())
   const nextWeek = todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate >= nmStr && t.dueDate <= nsStr)
   const highNoDate = todosStore.todos.filter(t => t.status !== 'completed' && !t.dueDate && t.priority === 'high')
 
@@ -304,6 +307,9 @@ function buildLocalReport(): string {
   return lines.join('\n').trim()
 }
 
+// 生成期间用户可能切换 tab/日期，序号不匹配的过期响应直接丢弃
+let generateSeq = 0
+
 async function generateReport() {
   const logs = summaryLogs.value
   const typeLabel = summaryTab.value === 'day' ? '日报' : summaryTab.value === 'week' ? '周报' : '月报'
@@ -314,6 +320,7 @@ async function generateReport() {
   }
 
   if (isAiConfigured()) {
+    const seq = ++generateSeq
     aiLoading.value = true
     try {
       const logTexts = logs.map(l => {
@@ -326,14 +333,14 @@ async function generateReport() {
       })
 
       const now = new Date()
-      const todayStr = now.toISOString().split('T')[0]
+      const todayLocal = todayStr()
       const day = now.getDay() || 7
       const nextMon = new Date(now); nextMon.setDate(now.getDate() - day + 8)
       const nextSun = new Date(now); nextSun.setDate(now.getDate() - day + 14)
-      const nmStr = nextMon.toISOString().split('T')[0]
-      const nsStr = nextSun.toISOString().split('T')[0]
+      const nmStr = fmt(nextMon)
+      const nsStr = fmt(nextSun)
 
-      const overdueTodos = todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate < todayStr)
+      const overdueTodos = todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate < todayLocal)
       const nextWeekTodos = todosStore.todos.filter(t => t.status !== 'completed' && t.dueDate && t.dueDate >= nmStr && t.dueDate <= nsStr)
       const highTodos = todosStore.todos.filter(t => t.status !== 'completed' && !t.dueDate && t.priority === 'high')
 
@@ -370,22 +377,45 @@ async function generateReport() {
 
       const prompt = `请根据以下工作日志记录，生成一份${typeLabel}（${summaryTitle.value}）。\n要求：\n1. 使用 Markdown 格式\n2. 包含工作概况、工作明细、${planLabel}三个部分（用二级标题）\n3. ${planLabel}${planDateRange}要结合待办事项数据，分为"优先处理（逾期）"、"本周计划"、"持续推进"三个小节\n4. 用简洁专业的语言\n5. 按项目或工作类型归纳总结\n6. 适合直接复制粘贴到工作汇报中\n\n工作日志：\n${logTexts.join('\n')}${todoContext}`
       const result = await chatWithAI([{ role: 'user', content: prompt }])
+      if (seq !== generateSeq) return
       reportContent.value = result
     } catch {
+      if (seq !== generateSeq) return
       reportContent.value = buildLocalReport()
     } finally {
-      aiLoading.value = false
+      if (seq === generateSeq) aiLoading.value = false
     }
   } else {
     showAiConfigPrompt()
   }
 }
 
+function fallbackCopy(text: string, done: () => void) {
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.style.position = 'fixed'
+  ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.select()
+  try {
+    document.execCommand('copy')
+    done()
+  } catch {
+    console.error('[copyReport] 复制失败')
+  }
+  document.body.removeChild(ta)
+}
+
 function copyReport() {
-  navigator.clipboard.writeText(reportContent.value).then(() => {
+  const done = () => {
     copyTip.value = true
     setTimeout(() => copyTip.value = false, 1500)
-  })
+  }
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(reportContent.value).then(done).catch(() => fallbackCopy(reportContent.value, done))
+  } else {
+    fallbackCopy(reportContent.value, done)
+  }
 }
 
 function saveReport() {
@@ -564,9 +594,9 @@ onMounted(() => {
           <div class="card report-right">
             <div class="card-header">
               <div class="summary-tabs">
-                <button :class="['stab', { active: summaryTab === 'day' }]" @click="summaryTab = 'day'">日报</button>
-                <button :class="['stab', { active: summaryTab === 'week' }]" @click="summaryTab = 'week'">周报</button>
-                <button :class="['stab', { active: summaryTab === 'month' }]" @click="summaryTab = 'month'">月报</button>
+                <button :class="['stab', { active: summaryTab === 'day' }]" :disabled="aiLoading" @click="summaryTab = 'day'">日报</button>
+                <button :class="['stab', { active: summaryTab === 'week' }]" :disabled="aiLoading" @click="summaryTab = 'week'">周报</button>
+                <button :class="['stab', { active: summaryTab === 'month' }]" :disabled="aiLoading" @click="summaryTab = 'month'">月报</button>
               </div>
               <div class="report-actions">
                 <button class="btn btn-sm" @click="generateReport" :disabled="aiLoading">{{ aiLoading ? '生成中...' : '生成' }}</button>
@@ -607,7 +637,7 @@ onMounted(() => {
                 <div v-if="reports.length === 0" class="card-empty">暂无历史报告</div>
                 <div v-for="r in reports" :key="r.id" class="history-item" @click="loadReport(r)">
                   <span class="history-label">{{ r.periodLabel }}</span>
-                  <span class="history-time">{{ r.createdAt.slice(0, 16).replace('T', ' ') }}</span>
+                  <span class="history-time">{{ formatDateTime(r.createdAt) }}</span>
                   <button class="log-del" @click.stop="deleteReport(r.id)" title="删除">&times;</button>
                 </div>
               </div>

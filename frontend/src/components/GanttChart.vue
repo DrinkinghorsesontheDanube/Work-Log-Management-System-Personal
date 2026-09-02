@@ -20,17 +20,33 @@ function diffDays(a: string, b: string) {
   return Math.round((new Date(b + 'T00:00:00').getTime() - new Date(a + 'T00:00:00').getTime()) / 86400000)
 }
 
+function isValidDateStr(s: string | undefined | null): boolean {
+  return !!s && !Number.isNaN(new Date(s + 'T00:00:00').getTime())
+}
+
+/** 日期缺失/非法时的兜底（自动生成的阶段任务 endDate 可能为空串，否则会算出 NaN 让整个图崩塌） */
+function effectiveStartDate(t: PlanTask): string {
+  return isValidDateStr(t.startDate) ? t.startDate : fmt(new Date())
+}
+
+function effectiveEndDate(t: PlanTask): string {
+  if (isValidDateStr(t.endDate)) return t.endDate
+  return fmt(new Date())
+}
+
 const timeline = computed(() => {
   const tasks = props.tasks
   if (tasks.length === 0) return { start: fmt(new Date()), days: 30, dates: [] as string[] }
 
-  let minDate = tasks[0].startDate
-  let maxDate = tasks[0].endDate
+  let minDate = effectiveStartDate(tasks[0])
+  let maxDate = effectiveEndDate(tasks[0])
   for (const t of tasks) {
-    if (t.startDate < minDate) minDate = t.startDate
-    if (t.endDate > maxDate) maxDate = t.endDate
-    if (t.actualStartDate && t.actualStartDate < minDate) minDate = t.actualStartDate
-    if (t.actualEndDate && t.actualEndDate > maxDate) maxDate = t.actualEndDate
+    const s = effectiveStartDate(t)
+    const e = effectiveEndDate(t)
+    if (s < minDate) minDate = s
+    if (e > maxDate) maxDate = e
+    if (t.actualStartDate && isValidDateStr(t.actualStartDate) && t.actualStartDate < minDate) minDate = t.actualStartDate
+    if (t.actualEndDate && isValidDateStr(t.actualEndDate) && t.actualEndDate > maxDate) maxDate = t.actualEndDate
   }
 
   const padStart = new Date(minDate + 'T00:00:00')
@@ -53,8 +69,8 @@ const timeline = computed(() => {
 const dayWidth = 28
 
 function barStyle(task: PlanTask) {
-  const offset = diffDays(timeline.value.start, task.startDate)
-  const span = diffDays(task.startDate, task.endDate) + 1
+  const offset = diffDays(timeline.value.start, effectiveStartDate(task))
+  const span = Math.max(1, diffDays(effectiveStartDate(task), effectiveEndDate(task)) + 1)
   return {
     left: (offset * dayWidth) + 'px',
     width: (span * dayWidth) + 'px',

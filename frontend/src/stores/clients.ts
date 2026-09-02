@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import type { Client, VisitRecord } from '../types'
 import { storage } from '../utils/storage'
 import { createEntity, touchEntity } from '../utils/entity'
+import { useProjectsStore } from './projects'
+import { useWorkLogsStore } from './workLogs'
 
 export const useClientsStore = defineStore('clients', () => {
   const clients = ref<Client[]>([])
@@ -74,10 +76,74 @@ export const useClientsStore = defineStore('clients', () => {
     visitRecords.value = visitRecords.value.filter((v) => v.clientId !== id)
     saveClients()
     saveVisitRecords()
+    // 级联：解除项目上的客户引用（负责人/经办人是该客户的联系人，随客户一并失效），以及日志上的客户关联
+    const projectsStore = useProjectsStore()
+    let projectsChanged = false
+    projectsStore.projects = projectsStore.projects.map((p) => {
+      if (p.clientId === id) {
+        projectsChanged = true
+        return touchEntity(p, {
+          clientId: null,
+          clientLeaderId: null,
+          clientExecutorId: null,
+        })
+      }
+      return p
+    })
+    if (projectsChanged) projectsStore.saveProjects()
+    useWorkLogsStore().clearClientRefs(id)
+  }
+
+  /** 级联：删除联系人时解除项目上的负责人/经办人引用、拜访记录上的联系人引用，并转移"主要联系人" */
+  function removeContact(clientId: string, contactId: string) {
+    const client = getClientById(clientId)
+    if (!client) return
+    client.contacts = client.contacts.filter((c) => c.id !== contactId)
+    if (client.contacts.length && !client.contacts.some((c) => c.isPrimary)) {
+      client.contacts[0].isPrimary = true
+    }
+    saveClients()
+
+    const projectsStore = useProjectsStore()
+    let projectsChanged = false
+    projectsStore.projects = projectsStore.projects.map((p) => {
+      if (
+        p.clientId === clientId &&
+        (p.clientLeaderId === contactId || p.clientExecutorId === contactId)
+      ) {
+        projectsChanged = true
+        return touchEntity(p, {
+          clientLeaderId: p.clientLeaderId === contactId ? null : p.clientLeaderId,
+          clientExecutorId: p.clientExecutorId === contactId ? null : p.clientExecutorId,
+        })
+      }
+      return p
+    })
+    if (projectsChanged) projectsStore.saveProjects()
+
+    let visitsChanged = false
+    visitRecords.value = visitRecords.value.map((v) => {
+      if (v.clientId === clientId && v.contactPersonId === contactId) {
+        visitsChanged = true
+        return { ...v, contactPersonId: '' }
+      }
+      return v
+    })
+    if (visitsChanged) saveVisitRecords()
   }
 
   function findClientByName(name: string) {
-    return clients.value.find((c) => c.name === name || name.includes(c.name))
+    const normalized = name.trim()
+    if (!normalized) return undefined
+    return clients.value.find((c) => {
+      const clientName = c.name.trim()
+      if (!clientName) return false
+      return (
+        clientName === normalized ||
+        clientName.includes(normalized) ||
+        normalized.includes(clientName)
+      )
+    })
   }
 
   function ensureClient(data: Omit<Client, 'id' | 'createdAt' | 'updatedAt'>) {
@@ -130,5 +196,6 @@ export const useClientsStore = defineStore('clients', () => {
     getVisitsByClient,
     addVisit,
     deleteVisit,
+    removeContact,
   }
 })

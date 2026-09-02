@@ -4,6 +4,9 @@ import type { Project, ProjectPhase, PlanTask } from '../types'
 import { DEFAULT_PHASES } from '../types'
 import { storage } from '../utils/storage'
 import { createEntity, touchEntity } from '../utils/entity'
+import { todayStr } from '../utils/date'
+import { useTodosStore } from './todos'
+import { useWorkLogsStore } from './workLogs'
 
 export const useProjectsStore = defineStore('projects', () => {
   const projects = ref<Project[]>([])
@@ -49,6 +52,11 @@ export const useProjectsStore = defineStore('projects', () => {
   function deleteProject(id: string) {
     projects.value = projects.value.filter((p) => p.id !== id)
     saveProjects()
+    // 级联清理关联数据：待办、日志、计划任务
+    useTodosStore().deleteByProjectId(id)
+    useWorkLogsStore().deleteByProjectId(id)
+    const remaining = storage.getPlanTasks().filter((t) => t.projectId !== id)
+    storage.savePlanTasks(remaining)
   }
 
   function getProjectById(id: string) {
@@ -76,7 +84,7 @@ export const useProjectsStore = defineStore('projects', () => {
       name: input.name,
       description: input.description || '',
       progress: input.progress ?? 0,
-      startDate: input.startDate || new Date().toISOString().split('T')[0],
+      startDate: input.startDate || todayStr(),
       endDate: input.endDate || '',
       status: input.status || 'planning',
       currentPhaseId: input.currentPhaseId || phases.value[0]?.id || 'initiation',
@@ -94,15 +102,16 @@ export const useProjectsStore = defineStore('projects', () => {
     const project = getProjectById(projectId)
     if (!project) return
 
+    const today = todayStr()
     const history = [...(project.phaseHistory || [])]
     const currentRecord = history.find((r) => r.phaseId === project.currentPhaseId && !r.endDate)
     if (currentRecord) {
-      currentRecord.endDate = new Date().toISOString().split('T')[0]
+      currentRecord.endDate = today
     }
 
     history.push({
       phaseId: newPhaseId,
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: today,
       endDate: null,
       note,
     })
@@ -159,6 +168,7 @@ export const useProjectsStore = defineStore('projects', () => {
   function createPhaseTasks(projectId: string): PlanTask[] {
     const planTasks: PlanTask[] = []
     const sortedPhases = [...phases.value].sort((a, b) => a.order - b.order)
+    const now = new Date().toISOString()
 
     sortedPhases.forEach((phase, index) => {
       const task: PlanTask = {
@@ -166,7 +176,7 @@ export const useProjectsStore = defineStore('projects', () => {
         projectId,
         parentId: null,
         name: phase.name,
-        startDate: new Date().toISOString().split('T')[0],
+        startDate: todayStr(),
         endDate: '',
         duration: 0,
         includeHolidays: false,
@@ -175,8 +185,8 @@ export const useProjectsStore = defineStore('projects', () => {
         progress: 0,
         status: index === 0 ? 'in_progress' : 'pending',
         order: phase.order,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: now,
+        updatedAt: now,
       }
       planTasks.push(task)
     })
@@ -194,6 +204,7 @@ export const useProjectsStore = defineStore('projects', () => {
     projects,
     phases,
     loadProjects,
+    saveProjects,
     addProject,
     updateProject,
     deleteProject,

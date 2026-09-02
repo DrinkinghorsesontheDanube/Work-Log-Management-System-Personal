@@ -36,6 +36,39 @@ function buildHeaders(provider: AiProvider): Record<string, string> {
   return headers
 }
 
+/**
+ * OpenAI 新模型只认 max_completion_tokens，而部分 OpenAI 兼容网关只认旧参数 max_tokens。
+ * 默认发新参数，服务端 400 且报错文本指向 token 参数时降级用 max_tokens 重试一次。
+ */
+async function postChatCompletion(
+  url: string,
+  headers: Record<string, string>,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  })
+  if (response.status === 400 && body.max_completion_tokens !== undefined) {
+    const errorText = await response
+      .clone()
+      .text()
+      .catch(() => '')
+    if (errorText.includes('max_completion_tokens') || errorText.includes('max_tokens')) {
+      const fallbackBody = { ...body }
+      fallbackBody.max_tokens = fallbackBody.max_completion_tokens
+      delete fallbackBody.max_completion_tokens
+      return fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(fallbackBody),
+      })
+    }
+  }
+  return response
+}
+
 export async function chatWithAI(messages: ChatMessage[]): Promise<string> {
   const provider = storage.getAiProvider()
   if (!provider || !provider.enabled || !provider.apiKey) {
@@ -51,11 +84,7 @@ export async function chatWithAI(messages: ChatMessage[]): Promise<string> {
     max_completion_tokens: 2000,
   }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: buildHeaders(provider),
-    body: JSON.stringify(body),
-  })
+  const response = await postChatCompletion(url, buildHeaders(provider), body)
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => '')
@@ -91,11 +120,7 @@ export async function testConnection(
   }
 
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: buildHeaders(provider),
-      body: JSON.stringify(body),
-    })
+    const response = await postChatCompletion(url, buildHeaders(provider), body)
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '')
