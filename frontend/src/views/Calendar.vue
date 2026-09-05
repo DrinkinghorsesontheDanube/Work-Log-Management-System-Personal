@@ -12,6 +12,9 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { formatDateTime, todayStr } from '../utils/date'
 import { message } from '../utils/notify'
+import WorkCategoryIcon from '../components/WorkCategoryIcon.vue'
+import { NConfigProvider, NDatePicker, darkTheme, zhCN, dateZhCN } from 'naive-ui'
+import { isDark as themeIsDark } from '../utils/theme'
 
 const workLogsStore = useWorkLogsStore()
 const showAiConfigPrompt = inject<() => void>('showAiConfigPrompt', () => {})
@@ -31,6 +34,31 @@ const summaryTab = ref<'day' | 'week' | 'month'>('day')
 const rangeStart = ref('')
 const rangeEnd = ref('')
 const rangePreset = ref('month')
+
+// 顶部范围选择器：naive-ui daterange（字符串日期 <-> 时间戳映射）
+const rangePickerValue = computed<[number, number]>({
+  get(): [number, number] {
+    return [
+      new Date(rangeStart.value + 'T00:00:00').getTime(),
+      new Date(rangeEnd.value + 'T00:00:00').getTime(),
+    ]
+  },
+  set: (val) => {
+    if (!val) return
+    rangeStart.value = fmt(new Date(val[0]))
+    rangeEnd.value = fmt(new Date(val[1]))
+    rangePreset.value = 'custom' // 自定义区间时预设按钮取消高亮
+  },
+})
+
+const pickerThemeOverrides = {
+  common: {
+    primaryColor: '#0d9488',
+    primaryColorHover: '#0f766e',
+    primaryColorPressed: '#115e59',
+    borderRadius: '8px',
+  },
+}
 
 const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 
@@ -552,9 +580,22 @@ onMounted(() => {
           :key="p.k" :class="['range-btn', { active: rangePreset === p.k }]" @click="setRangePreset(p.k)">{{ p.l }}</button>
       </div>
       <div class="range-inputs">
-        <input type="date" v-model="rangeStart" class="input range-date" />
-        <span class="range-sep">至</span>
-        <input type="date" v-model="rangeEnd" class="input range-date" />
+        <n-config-provider
+          :theme="themeIsDark ? darkTheme : null"
+          :theme-overrides="pickerThemeOverrides"
+          :locale="zhCN"
+          :date-locale="dateZhCN"
+          abstract
+        >
+          <n-date-picker
+            v-model:value="rangePickerValue"
+            type="daterange"
+            size="small"
+            :clearable="false"
+            format="yyyy-MM-dd"
+            style="width: 250px"
+          />
+        </n-config-provider>
       </div>
     </div>
 
@@ -610,7 +651,7 @@ onMounted(() => {
           </div>
           <div class="cat-list">
             <div v-for="cat in rangeStats.catList" :key="cat.id" class="cat-row">
-              <span class="cat-icon">{{ cat.icon }}</span>
+              <span class="cat-icon"><WorkCategoryIcon :id="cat.id" :size="15" /></span>
               <span class="cat-name">{{ cat.name }}</span>
               <span class="cat-count">{{ cat.count }}</span>
             </div>
@@ -665,7 +706,7 @@ onMounted(() => {
                     <div class="log-head">
                       <span class="log-date">{{ log.date }}</span>
                       <span class="log-cat" :style="{ color: getCatInfo(log.categoryId).color }">
-                        {{ getCatInfo(log.categoryId).icon }} {{ getCatInfo(log.categoryId).name }}
+                        <WorkCategoryIcon :id="log.categoryId || 'other'" :size="12" /> {{ getCatInfo(log.categoryId).name }}
                       </span>
                       <span v-if="getProjectName(log.projectId)" class="badge badge-blue">{{ getProjectName(log.projectId) }}</span>
                       <button class="log-del" @click.stop="deleteLog(log.id)" title="删除">&times;</button>
@@ -679,7 +720,7 @@ onMounted(() => {
                   <div class="log-head">
                     <span class="log-date">{{ log.date }}</span>
                     <span class="log-cat" :style="{ color: getCatInfo(log.categoryId).color }">
-                      {{ getCatInfo(log.categoryId).icon }} {{ getCatInfo(log.categoryId).name }}
+                      <WorkCategoryIcon :id="log.categoryId || 'other'" :size="12" /> {{ getCatInfo(log.categoryId).name }}
                     </span>
                     <span v-if="getProjectName(log.projectId)" class="badge badge-blue">{{ getProjectName(log.projectId) }}</span>
                     <button class="log-del" @click.stop="deleteLog(log.id)" title="删除">&times;</button>

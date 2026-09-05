@@ -274,7 +274,7 @@ watch(() => route.path, () => {
       <div class="focus-row-wrap">
         <div class="focus-card">
           <div class="focus-header">
-            <span class="focus-title">🔴 今日关注</span>
+            <span class="focus-title"><svg class="focus-ico ico-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><circle cx="12" cy="15.5" r=".6" fill="currentColor"/></svg>今日关注</span>
             <span class="focus-count">{{ overdueTodos.length + todayTodos.length }}</span>
           </div>
           <div class="focus-body">
@@ -305,7 +305,7 @@ watch(() => route.path, () => {
 
         <div class="focus-card">
           <div class="focus-header">
-            <span class="focus-title">📅 本周关注</span>
+            <span class="focus-title"><svg class="focus-ico ico-blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>本周关注</span>
             <span class="focus-count">{{ upcomingTodos.filter(t => t.status !== 'completed').length }} 待处理</span>
           </div>
           <div class="focus-body">
@@ -322,7 +322,7 @@ watch(() => route.path, () => {
       <div class="focus-row-wrap" style="margin-top:-2px">
         <div class="focus-card">
           <div class="focus-header">
-            <span class="focus-title">🔥 投标截止提醒</span>
+            <span class="focus-title"><svg class="focus-ico ico-amber" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="7"/><path d="M12 9v4"/><path d="M9.5 2h5M12 2v4"/></svg>投标截止提醒</span>
             <span class="focus-count">{{ bidDeadlines.length }}</span>
           </div>
           <div class="focus-body">
@@ -338,7 +338,7 @@ watch(() => route.path, () => {
 
         <div class="focus-card">
           <div class="focus-header">
-            <span class="focus-title">🤝 客户跟进提醒</span>
+            <span class="focus-title"><svg class="focus-ico ico-teal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.8a3.5 3.5 0 0 1 0 6.4"/><path d="M17.8 13.8a6.5 6.5 0 0 1 3.7 6.2"/></svg>客户跟进提醒</span>
             <span class="focus-count">{{ followUpClients.length }}</span>
           </div>
           <div class="focus-body">
@@ -357,7 +357,7 @@ watch(() => route.path, () => {
       <div class="focus-row-wrap" style="margin-top:-2px">
         <div class="focus-card" style="grid-column: 1 / -1">
           <div class="focus-header">
-            <span class="focus-title">📋 下周计划</span>
+            <span class="focus-title"><svg class="focus-ico ico-violet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>下周计划</span>
             <span class="focus-count">{{ nextWeekTodos.length }} 项</span>
           </div>
           <div class="focus-body focus-body-grid">
@@ -582,7 +582,16 @@ watch(() => route.path, () => {
   display: flex; justify-content: space-between; align-items: center;
   padding: 12px 16px; border-bottom: 1px solid var(--border-light, var(--border));
 }
-.focus-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.focus-title {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+.focus-ico { width: 15px; height: 15px; flex-shrink: 0; }
+.ico-red { color: var(--rose); }
+.ico-blue { color: var(--blue); }
+.ico-amber { color: var(--amber); }
+.ico-teal { color: var(--primary); }
+.ico-violet { color: #8b5cf6; }
 .focus-count {
   font-size: 11px; font-weight: 700; color: var(--text-muted);
   background: var(--bg); padding: 1px 8px; border-radius: var(--radius-full);
