@@ -36,9 +36,12 @@ async function submit() {
       </div>
       <input
         v-model="password"
+        id="login-password"
+        name="password"
         type="password"
         class="login-input"
         placeholder="请输入访问密码"
+        autocomplete="current-password"
         autofocus
         :disabled="loading"
       />
