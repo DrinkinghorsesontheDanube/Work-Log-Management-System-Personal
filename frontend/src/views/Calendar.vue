@@ -182,6 +182,20 @@ const summaryLogs = computed(() => {
   return workLogsStore.workLogs.filter(l => l.date >= ms && l.date <= me).sort((a, b) => a.date.localeCompare(b.date))
 })
 
+/** 日志全文搜索：跨全部日期，按内容或所属项目名匹配 */
+const logSearch = ref('')
+const searchResults = computed(() => {
+  const q = logSearch.value.trim().toLowerCase()
+  if (!q) return []
+  return workLogsStore.workLogs
+    .filter(l => {
+      if (l.content.toLowerCase().includes(q)) return true
+      const proj = l.projectId ? getProjectName(l.projectId) : ''
+      return proj.toLowerCase().includes(q)
+    })
+    .sort((a, b) => b.date.localeCompare(a.date))
+})
+
 const summaryTitle = computed(() => {
   if (summaryTab.value === 'day') return selectedDate.value
   if (summaryTab.value === 'week') {
@@ -614,11 +628,35 @@ onMounted(() => {
 
           <div class="card report-left">
             <div class="card-header">
-              <span class="card-title">原始日志</span>
-              <span class="summary-date">{{ summaryTitle }}</span>
+              <span class="card-title">{{ logSearch.trim() ? '搜索结果' : '原始日志' }}</span>
+              <span class="summary-date">{{ logSearch.trim() ? `${searchResults.length} 条匹配` : summaryTitle }}</span>
             </div>
             <div class="log-list-body">
+              <div class="log-search">
+                <input
+                  v-model="logSearch"
+                  class="log-search-input"
+                  type="text"
+                  placeholder="搜索全部日志：内容、项目名..."
+                />
+                <button v-if="logSearch" class="log-search-clear" @click="logSearch = ''" title="清除">&times;</button>
+              </div>
               <div class="log-section">
+                <template v-if="logSearch.trim()">
+                  <div v-if="searchResults.length === 0" class="card-empty">没有匹配的日志</div>
+                  <div v-for="log in searchResults" :key="log.id" class="log-item" @click="openEditLog(log)">
+                    <div class="log-head">
+                      <span class="log-date">{{ log.date }}</span>
+                      <span class="log-cat" :style="{ color: getCatInfo(log.categoryId).color }">
+                        {{ getCatInfo(log.categoryId).icon }} {{ getCatInfo(log.categoryId).name }}
+                      </span>
+                      <span v-if="getProjectName(log.projectId)" class="badge badge-blue">{{ getProjectName(log.projectId) }}</span>
+                      <button class="log-del" @click.stop="deleteLog(log.id)" title="删除">&times;</button>
+                    </div>
+                    <p class="log-content">{{ log.content }}</p>
+                  </div>
+                </template>
+                <template v-else>
                 <div v-if="summaryLogs.length === 0" class="card-empty">暂无工作记录</div>
                 <div v-for="log in summaryLogs" :key="log.id" class="log-item" @click="openEditLog(log)">
                   <div class="log-head">
@@ -631,6 +669,7 @@ onMounted(() => {
                   </div>
                   <p class="log-content">{{ log.content }}</p>
                 </div>
+                </template>
               </div>
               <div class="history-section">
                 <div class="history-title">历史报告</div>
@@ -746,6 +785,35 @@ onMounted(() => {
 }
 .report-left { display: flex; flex-direction: column; min-height: 0; }
 .log-list-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.log-search {
+  position: relative;
+  padding: 10px 14px 0;
+  flex-shrink: 0;
+}
+.log-search-input {
+  width: 100%;
+  padding: 7px 30px 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 12.5px;
+  outline: none;
+  box-sizing: border-box;
+}
+.log-search-input:focus { border-color: var(--primary); }
+.log-search-clear {
+  position: absolute;
+  right: 22px;
+  top: 50%;
+  transform: translateY(calc(-50% - 3px));
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+}
 .log-section { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 14px; }
 .report-right { display: flex; flex-direction: column; min-height: 0; }
 .report-right .card-header { flex-wrap: wrap; gap: 8px; }

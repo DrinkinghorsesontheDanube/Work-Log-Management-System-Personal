@@ -32,15 +32,20 @@ export const useWorkLogsStore = defineStore('workLogs', () => {
   }
 
   function deleteWorkLog(id: string) {
+    const log = workLogs.value.find((w) => w.id === id)
+    if (log) storage.trash('workLog', log)
     workLogs.value = workLogs.value.filter((w) => w.id !== id)
     saveWorkLogs()
   }
 
-  /** 级联：删除项目时清理其下所有日志 */
+  /** 级联：删除项目时清理其下所有日志（移入回收站） */
   function deleteByProjectId(projectId: string) {
-    const before = workLogs.value.length
-    workLogs.value = workLogs.value.filter((w) => w.projectId !== projectId)
-    if (workLogs.value.length !== before) saveWorkLogs()
+    const removed = workLogs.value.filter((w) => w.projectId === projectId)
+    removed.forEach((w) => storage.trash('workLog', w))
+    if (removed.length) {
+      workLogs.value = workLogs.value.filter((w) => w.projectId !== projectId)
+      saveWorkLogs()
+    }
   }
 
   /** 级联：删除客户时解除日志上的客户关联（日志本身保留） */

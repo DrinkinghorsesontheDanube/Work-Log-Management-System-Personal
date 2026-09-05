@@ -10,6 +10,7 @@ import { usePlanTasksStore } from '../stores/planTasks'
 import { chatWithAI, isAiConfigured } from '../services/aiService'
 import { addWorkingDays, calcWorkingDays } from '../utils/workdays'
 import { todayStr } from '../utils/date'
+import { message } from '../utils/notify'
 import GanttChart from '../components/GanttChart.vue'
 import type { Project, PlanTask } from '../types'
 
@@ -506,7 +507,7 @@ async function aiGeneratePlan() {
 项目描述：${project.value.description}`
     const resp = await chatWithAI([{ role: 'user', content: prompt }])
     const jsonMatch = resp.match(/\[[\s\S]*\]/)
-    if (!jsonMatch) { alert('AI 返回格式异常，请重试'); return }
+    if (!jsonMatch) { message.error('AI 返回格式异常，请重试'); return }
     const tasks = JSON.parse(jsonMatch[0])
     const now = new Date().toISOString()
     let order = projectPlanTasks.value.length
@@ -538,7 +539,7 @@ async function aiGeneratePlan() {
     aiPreviewTasks.value = preview
     showAiPreview.value = true
   } catch (e) {
-    alert('AI 生成失败：' + ((e instanceof Error && e.message) || '未知错误'))
+    message.error('AI 生成失败：' + ((e instanceof Error && e.message) || '未知错误'))
   } finally {
     aiGenerating.value = false
   }
@@ -567,7 +568,7 @@ function importCSV(e: Event) {
   reader.onload = () => {
     const text = reader.result as string
     const lines = text.split(/\r?\n/).filter(l => l.trim())
-    if (lines.length < 2) { alert('文件为空或格式不对'); return }
+    if (lines.length < 2) { message.error('文件为空或格式不对'); return }
     const now = new Date().toISOString()
     const newTasks: PlanTask[] = []
     let order = projectPlanTasks.value.length
@@ -597,7 +598,7 @@ function importCSV(e: Event) {
     }
     planTasks.value = [...planTasks.value, ...newTasks]
     planTasksStore.savePlanTasks()
-    alert(`成功导入 ${newTasks.length} 条任务`)
+    message.success(`成功导入 ${newTasks.length} 条任务`)
   }
   reader.readAsText(file)
 }

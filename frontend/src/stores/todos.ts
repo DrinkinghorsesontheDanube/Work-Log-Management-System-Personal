@@ -40,15 +40,20 @@ export const useTodosStore = defineStore('todos', () => {
   }
 
   function deleteTodo(id: string) {
+    const todo = todos.value.find((t) => t.id === id)
+    if (todo) storage.trash('todo', todo)
     todos.value = todos.value.filter((t) => t.id !== id)
     saveTodos()
   }
 
-  /** 级联：删除项目时清理其下所有待办 */
+  /** 级联：删除项目时清理其下所有待办（移入回收站） */
   function deleteByProjectId(projectId: string) {
-    const before = todos.value.length
-    todos.value = todos.value.filter((t) => t.projectId !== projectId)
-    if (todos.value.length !== before) saveTodos()
+    const removed = todos.value.filter((t) => t.projectId === projectId)
+    removed.forEach((t) => storage.trash('todo', t))
+    if (removed.length) {
+      todos.value = todos.value.filter((t) => t.projectId !== projectId)
+      saveTodos()
+    }
   }
 
   /** 级联：删除计划任务时解除待办上的悬挂引用 */

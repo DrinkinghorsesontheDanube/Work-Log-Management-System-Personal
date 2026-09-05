@@ -10,12 +10,17 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
   const messages = ref<AiMessage[]>([])
   const loading = ref(false)
   const error = ref('')
+  /** 对话记录软上限，超出时丢弃最旧的（全量同步体积保护） */
+  const MAX_MESSAGES = 500
 
   function loadMessages() {
     messages.value = storage.getAiMessages()
   }
 
   function saveMessages() {
+    if (messages.value.length > MAX_MESSAGES) {
+      messages.value = messages.value.slice(-MAX_MESSAGES)
+    }
     storage.saveAiMessages(messages.value)
   }
 

@@ -36,6 +36,7 @@ const COLLECTION_NAMES = [
   'reports',
   'planTasks',
   'aiMessages',
+  'deleted',
 ]
 
 // ---------- 认证配置 ----------
@@ -283,6 +284,49 @@ async function handleApi(req, res, pathname) {
     })
   }
 
+  if (pathname === '/api/auth/change-password' && req.method === 'POST') {
+    const ip = req.socket.remoteAddress || 'unknown'
+    if (isLoginRateLimited(ip)) {
+      return sendJson(res, 429, { error: '尝试次数过多，请稍后再试' })
+    }
+    if (process.env.AUTH_PASSWORD) {
+      return sendJson(res, 400, {
+        error: '当前密码由环境变量 AUTH_PASSWORD 管理，请在服务器上修改环境变量后重启',
+      })
+    }
+    const body = await readBody(req)
+    const oldPwd = typeof body.oldPassword === 'string' ? body.oldPassword : ''
+    const newPwd = typeof body.newPassword === 'string' ? body.newPassword : ''
+    if (sha256(authConfig.salt + oldPwd) !== authConfig.hash) {
+      console.log(`[auth] 修改密码失败（旧密码错误）ip=${ip}`)
+      return sendJson(res, 401, { error: '当前密码不正确' })
+    }
+    if (newPwd.length < 8) {
+      return sendJson(res, 400, { error: '新密码至少 8 位' })
+    }
+    const salt = crypto.randomBytes(16).toString('hex')
+    const config = {
+      salt,
+      hash: sha256(salt + newPwd),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    fs.writeFileSync(path.join(DATA_DIR, 'config.json'), JSON.stringify(config, null, 2))
+    authConfig.salt = config.salt
+    authConfig.hash = config.hash
+    // 其他设备/浏览器的会话全部失效，当前会话保留
+    const currentToken = getSessionToken(req)
+    if (currentToken) {
+      db.prepare('DELETE FROM sessions WHERE token != ?').run(currentToken)
+    }
+    console.log(`[auth] 访问密码已修改 ip=${ip}`)
+    return sendJson(res, 200, { ok: true })
+  }
+
+  if (pathname === '/api/auth/change-password' && req.method !== 'POST') {
+    return sendJson(res, 405, { error: 'Method Not Allowed' })
+  }
+
   // —— 以下需要认证 ——
   if (!requireAuth(req)) {
     return sendJson(res, 401, { error: '未登录或会话已过期' })
@@ -378,6 +422,42 @@ async function handleApi(req, res, pathname) {
     if (!file) return sendJson(res, 200, { ok: true, skipped: '数据库为空，无需备份' })
     console.log(`[backup] 手动备份: ${path.basename(file)}`)
     return sendJson(res, 200, { ok: true, file: path.basename(file) })
+  }
+
+  const BACKUP_FILE_RE = /^worklog-[\w-]+\.sqlite$/
+  if (pathname === '/api/backups' && req.method === 'GET') {
+    const dir = path.join(DATA_DIR, 'backups')
+    let backups = []
+    if (fs.existsSync(dir)) {
+      backups = fs
+        .readdirSync(dir)
+        .filter((f) => BACKUP_FILE_RE.test(f))
+        .map((f) => {
+          const st = fs.statSync(path.join(dir, f))
+          return { file: f, sizeBytes: st.size, mtime: st.mtime.toISOString() }
+        })
+        .sort((a, b) => b.file.localeCompare(a.file))
+    }
+    return sendJson(res, 200, { backups })
+  }
+
+  const backupFileMatch = pathname.match(/^\/api\/backups\/([\w.-]+)$/)
+  if (backupFileMatch && req.method === 'GET') {
+    const file = backupFileMatch[1]
+    if (!BACKUP_FILE_RE.test(file)) {
+      return sendJson(res, 400, { error: '非法文件名' })
+    }
+    const filePath = path.join(DATA_DIR, 'backups', file)
+    if (!fs.existsSync(filePath)) {
+      return sendJson(res, 404, { error: '备份文件不存在' })
+    }
+    res.writeHead(200, {
+      'Content-Type': 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${file}"`,
+      'Cache-Control': 'no-store',
+    })
+    fs.createReadStream(filePath).pipe(res)
+    return
   }
 
   if (pathname === '/api/ai/chat' && req.method === 'POST') {

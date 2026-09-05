@@ -50,12 +50,18 @@ export const useProjectsStore = defineStore('projects', () => {
   }
 
   function deleteProject(id: string) {
+    const project = getProjectById(id)
+    if (project) storage.trash('project', project)
     projects.value = projects.value.filter((p) => p.id !== id)
     saveProjects()
-    // 级联清理关联数据：待办、日志、计划任务
+    // 级联清理关联数据：待办、日志（各自 store 会移入回收站）、计划任务
     useTodosStore().deleteByProjectId(id)
     useWorkLogsStore().deleteByProjectId(id)
-    const remaining = storage.getPlanTasks().filter((t) => t.projectId !== id)
+    const allTasks = storage.getPlanTasks()
+    allTasks
+      .filter((t) => t.projectId === id)
+      .forEach((t) => storage.trash('planTask', t))
+    const remaining = allTasks.filter((t) => t.projectId !== id)
     storage.savePlanTasks(remaining)
   }
 

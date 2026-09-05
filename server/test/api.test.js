@@ -11,10 +11,10 @@ const ROOT = path.resolve(SERVER_DIR, '..')
 const PORT = 4579
 const BASE = `http://127.0.0.1:${PORT}`
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'worklog-api-test-'))
-const PASSWORD = 'test-pass-123'
 
 let child
 let cookie = ''
+let password = ''
 
 async function waitForHealth(timeoutMs = 15000) {
   const deadline = Date.now() + timeoutMs
@@ -30,6 +30,29 @@ async function waitForHealth(timeoutMs = 15000) {
   throw new Error('服务器未在超时时间内就绪')
 }
 
+before(async () => {
+  child = spawn(process.execPath, ['server.js'], {
+    cwd: ROOT,
+    env: { ...process.env, PORT: String(PORT), DATA_DIR },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  let stdout = ''
+  child.stdout.on('data', (d) => (stdout += d.toString()))
+  child.stderr.on('data', (d) => process.stderr.write(`[server] ${d}`))
+  await waitForHealth()
+  // 首次启动自动生成密码（打印在启动日志中）
+  const deadline = Date.now() + 5000
+  while (Date.now() < deadline) {
+    const m = stdout.match(/ACCESS PASSWORD: (\S+)/)
+    if (m) {
+      password = m[1]
+      break
+    }
+    await new Promise((r) => setTimeout(r, 100))
+  }
+  assert.ok(password, '启动日志中应包含自动生成的访问密码')
+})
+
 function api(method, pathname, body, extraHeaders = {}) {
   const headers = { 'Content-Type': 'application/json', ...extraHeaders }
   return fetch(`${BASE}${pathname}`, {
@@ -42,16 +65,6 @@ function api(method, pathname, body, extraHeaders = {}) {
 function authed(method, pathname, body) {
   return api(method, pathname, body, { Cookie: cookie })
 }
-
-before(async () => {
-  child = spawn(process.execPath, ['server.js'], {
-    cwd: ROOT,
-    env: { ...process.env, PORT: String(PORT), DATA_DIR, AUTH_PASSWORD: PASSWORD },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
-  child.stderr.on('data', (d) => process.stderr.write(`[server] ${d}`))
-  await waitForHealth()
-})
 
 after(async () => {
   child?.kill()
@@ -72,10 +85,10 @@ test('未登录访问数据接口返回 401', async () => {
 })
 
 test('错误密码 401，正确密码发放会话', async () => {
-  const bad = await api('POST', '/api/auth/login', { password: 'wrong' })
+  const bad = await api('POST', '/api/auth/login', { password: 'definitely-wrong' })
   assert.equal(bad.status, 401)
 
-  const good = await api('POST', '/api/auth/login', { password: PASSWORD })
+  const good = await api('POST', '/api/auth/login', { password })
   assert.equal(good.status, 200)
   const setCookie = good.headers.get('set-cookie')
   assert.ok(setCookie?.includes('wl_session='))
@@ -224,6 +237,60 @@ test('路径穿越被拦截，未知路径回退 SPA', async () => {
   const spa = await fetch(`${BASE}/some/unknown/route`)
   assert.equal(spa.status, 200)
   assert.match(await spa.text(), /<div id="app">|<title>/)
+})
+
+test('回收站集合在白名单内且可增量写入', async () => {
+  const entry = { id: 'del_1', type: 'todo', deletedAt: '2026-09-05T00:00:00Z', data: { id: 't9', title: '被删的待办' } }
+  const res = await authed('POST', '/api/collections/deleted/changes', { upserts: [entry], deletes: [] })
+  assert.equal(res.status, 200)
+  const state = await (await authed('GET', '/api/state')).json()
+  assert.equal(state.collections.deleted.length, 1)
+})
+
+test('修改访问密码：旧密码错误 401，新密码过短 400，成功后旧密码失效', async () => {
+  const wrongOld = await authed('POST', '/api/auth/change-password', {
+    oldPassword: 'wrong-old',
+    newPassword: 'new-pass-45678',
+  })
+  assert.equal(wrongOld.status, 401)
+
+  const tooShort = await authed('POST', '/api/auth/change-password', {
+    oldPassword: password,
+    newPassword: 'short',
+  })
+  assert.equal(tooShort.status, 400)
+
+  const ok = await authed('POST', '/api/auth/change-password', {
+    oldPassword: password,
+    newPassword: 'brand-new-pass-45678',
+  })
+  assert.equal(ok.status, 200)
+
+  // 旧密码不能再登录，新密码可以
+  const oldLogin = await api('POST', '/api/auth/login', { password })
+  assert.equal(oldLogin.status, 401)
+  const newLogin = await api('POST', '/api/auth/login', { password: 'brand-new-pass-45678' })
+  assert.equal(newLogin.status, 200)
+})
+
+test('备份列表与备份下载', async () => {
+  // 触发一次备份（前面用例已写入数据，不会跳过）
+  await authed('POST', '/api/backup')
+  const list = await authed('GET', '/api/backups')
+  assert.equal(list.status, 200)
+  const { backups } = await list.json()
+  assert.ok(backups.length >= 1)
+  assert.ok(backups[0].file.startsWith('worklog-'))
+
+  const download = await authed('GET', `/api/backups/${backups[0].file}`)
+  assert.equal(download.status, 200)
+  const buf = Buffer.from(await download.arrayBuffer())
+  assert.ok(buf.length > 0)
+  // SQLite 文件魔数
+  assert.equal(buf.subarray(0, 15).toString('utf8'), 'SQLite format 3')
+
+  const badName = await authed('GET', '/api/backups/..%2Fconfig.json')
+  assert.ok([400, 404].includes(badName.status), '非法文件名应被拒绝')
 })
 
 test('登出后会话失效', async () => {

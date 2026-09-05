@@ -39,6 +39,7 @@ const COLLECTION_NAMES = [
   'reports',
   'planTasks',
   'aiMessages',
+  'deleted',
 ] as const
 type CollectionName = (typeof COLLECTION_NAMES)[number]
 
@@ -56,6 +57,7 @@ const cache: Record<CollectionName, unknown[]> = {
   reports: [],
   planTasks: [],
   aiMessages: [],
+  deleted: [],
 }
 /** 每个集合最近一次与服务器确认一致的状态（id -> JSON），用于计算增量 */
 const lastSynced: Record<CollectionName, Map<string, string>> = {
@@ -67,6 +69,7 @@ const lastSynced: Record<CollectionName, Map<string, string>> = {
   reports: new Map(),
   planTasks: new Map(),
   aiMessages: new Map(),
+  deleted: new Map(),
 }
 /** 本地有未同步到服务器的更改（推送成功后清除；期间不会做焦点刷新覆盖） */
 const dirty: Record<CollectionName, boolean> = {
@@ -78,6 +81,7 @@ const dirty: Record<CollectionName, boolean> = {
   reports: false,
   planTasks: false,
   aiMessages: false,
+  deleted: false,
 }
 
 let aiProviderCache: StoredAiProvider | null = null
@@ -91,6 +95,33 @@ export const serverOnline = ref(true)
 export const needsSeed = ref(false)
 /** 服务器当前数据来源：'demo'=演示数据（可被真实数据合并迁移），'legacy'=已迁移旧数据 */
 export const seededWith = ref('')
+
+/** 回收站条目 */
+export interface DeletedEntry {
+  id: string
+  type: DeletedType
+  deletedAt: string
+  data: unknown
+}
+
+export type DeletedType =
+  | 'todo'
+  | 'workLog'
+  | 'client'
+  | 'project'
+  | 'visit'
+  | 'report'
+  | 'planTask'
+
+const DELETED_TYPE_COLLECTION: Record<DeletedType, CollectionName> = {
+  todo: 'todos',
+  workLog: 'workLogs',
+  client: 'clients',
+  project: 'projects',
+  visit: 'visitRecords',
+  report: 'reports',
+  planTask: 'planTasks',
+}
 
 let initialized = false
 
@@ -111,29 +142,11 @@ function handleSyncError(e: unknown) {
 }
 
 function snapshotMap(name: CollectionName): Map<string, string> {
-  const map = new Map<string, string>()
-  for (const item of cache[name] as { id: unknown }[]) {
-    if (!isValidItem(item)) continue
-    map.set(String(item.id), JSON.stringify(item))
-  }
-  return map
+  return snapshotOf(cache[name])
 }
 
 function computeDiff(name: CollectionName): CollectionDiff {
-  const synced = lastSynced[name]
-  const currentIds = new Set<string>()
-  const upserts: unknown[] = []
-  for (const item of cache[name] as { id: unknown }[]) {
-    if (!isValidItem(item)) continue
-    const id = String(item.id)
-    currentIds.add(id)
-    if (synced.get(id) !== JSON.stringify(item)) upserts.push(item)
-  }
-  const deletes: string[] = []
-  for (const id of synced.keys()) {
-    if (!currentIds.has(id)) deletes.push(id)
-  }
-  return { upserts, deletes }
+  return diffOf(cache[name], lastSynced[name])
 }
 
 async function pushCollection(name: CollectionName) {
@@ -212,6 +225,8 @@ function adoptServerState(payload: {
   phasesCache = payload.settings?.projectPhases ?? null
   needsSeed.value = !(payload.settings?.meta?.seeded)
   seededWith.value = payload.settings?.meta?.seededWith ?? ''
+  // 回收站过期条目（>30 天）自动清理
+  storage.purgeExpiredDeleted(30)
 }
 
 /**
@@ -295,10 +310,54 @@ function isValidItem(item: unknown): item is { id: unknown } {
   return !!item && typeof item === 'object' && !Array.isArray(item) && (item as { id?: unknown }).id != null
 }
 
-function mergeById(current: unknown[], incoming: unknown[]): unknown[] {
+// —— 纯函数（导出供单元测试）——
+
+/** 键序无关的 JSON 序列化：字段插入顺序不同但内容相同的对象视为相等 */
+export function stableStringify(item: unknown): string {
+  return JSON.stringify(item, (_key, value) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return Object.keys(value)
+        .sort()
+        .reduce<Record<string, unknown>>((acc, k) => {
+          acc[k] = value[k]
+          return acc
+        }, {})
+    }
+    return value
+  })
+}
+
+/** 集合当前条目的 id -> JSON 快照，跳过非对象条目 */
+export function snapshotOf(items: unknown[]): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const item of items as { id: unknown }[]) {
+    if (!isValidItem(item)) continue
+    map.set(String(item.id), stableStringify(item))
+  }
+  return map
+}
+
+/** 计算相对 lastSynced 的增量：本机新增/修改的实体 + 本机删除的实体 id */
+export function diffOf(current: unknown[], synced: Map<string, string>): CollectionDiff {
+  const currentIds = new Set<string>()
+  const upserts: unknown[] = []
+  for (const item of current as { id: unknown }[]) {
+    if (!isValidItem(item)) continue
+    const id = String(item.id)
+    currentIds.add(id)
+    if (synced.get(id) !== stableStringify(item)) upserts.push(item)
+  }
+  const deletes: string[] = []
+  for (const id of synced.keys()) {
+    if (!currentIds.has(id)) deletes.push(id)
+  }
+  return { upserts, deletes }
+}
+
+/** 按 id 合并两个集合：同 id 以 incoming 为准，仅 current 存在的条目保留 */
+export function mergeById(current: unknown[], incoming: unknown[]): unknown[] {
   const map = new Map<string, unknown>()
   for (const item of current) if (isValidItem(item)) map.set(String(item.id), item)
-  // 同 id 时以传入（旧数据）为准；仅服务器上存在的条目原样保留
   for (const item of incoming) if (isValidItem(item)) map.set(String(item.id), item)
   return [...map.values()]
 }
@@ -381,6 +440,82 @@ export const storage = {
     cache.planTasks = tasks
     scheduleCollection('planTasks')
   },
+
+  // —— 回收站 ——
+
+  /** 回收站条目：type 标识来源集合，data 为被删实体原样数据 */
+  getDeleted(): DeletedEntry[] {
+    return [...(cache.deleted as DeletedEntry[])].sort((a, b) =>
+      (b.deletedAt || '').localeCompare(a.deletedAt || ''),
+    )
+  },
+  /** 删除任意实体前调用：移入回收站（保留 30 天，可恢复） */
+  trash(type: DeletedType, item: unknown) {
+    if (!isValidItem(item)) return
+    const entry: DeletedEntry = {
+      id: 'del_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      type,
+      deletedAt: new Date().toISOString(),
+      data: item,
+    }
+    ;(cache.deleted as unknown[]).push(entry)
+    scheduleCollection('deleted')
+  },
+  /** 从回收站恢复条目到原集合 */
+  restoreDeleted(entryId: string): boolean {
+    const list = cache.deleted as DeletedEntry[]
+    const idx = list.findIndex((e) => e.id === entryId)
+    if (idx === -1) return false
+    const entry = list[idx]
+    const target = DELETED_TYPE_COLLECTION[entry.type]
+    if (!target) return false
+    list.splice(idx, 1)
+    scheduleCollection('deleted')
+    const targetCache = cache[target] as { id: unknown }[]
+    const id = String((entry.data as { id: unknown }).id)
+    const existIdx = targetCache.findIndex((t) => String(t.id) === id)
+    if (existIdx !== -1) targetCache[existIdx] = entry.data as { id: unknown }
+    else targetCache.push(entry.data as { id: unknown })
+    scheduleCollection(target)
+    return true
+  },
+  /** 彻底删除回收站条目（不进回收站） */
+  purgeDeleted(entryId: string): boolean {
+    const list = cache.deleted as DeletedEntry[]
+    const idx = list.findIndex((e) => e.id === entryId)
+    if (idx === -1) return false
+    list.splice(idx, 1)
+    scheduleCollection('deleted')
+    return true
+  },
+  /** 清理超过保留期（默认 30 天）的回收站条目，应用初始化时调用 */
+  purgeExpiredDeleted(days = 30) {
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+    const before = (cache.deleted as unknown[]).length
+    ;(cache.deleted as unknown[]) = (cache.deleted as DeletedEntry[]).filter(
+      (e) => new Date(e.deletedAt).getTime() > cutoff,
+    )
+    if ((cache.deleted as unknown[]).length !== before) scheduleCollection('deleted')
+  },
+  /** 修改访问密码（成功后其他设备的会话将失效，当前会话保留） */
+  async changePassword(oldPassword: string, newPassword: string): Promise<void> {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oldPassword, newPassword }),
+    })
+    const data = (await res.json().catch(() => ({}))) as { error?: string }
+    if (!res.ok) throw new Error(data.error || `修改失败 (${res.status})`)
+  },
+
+  /** 服务器自动备份列表（新→旧） */
+  async listBackups(): Promise<{ file: string; sizeBytes: number; mtime: string }[]> {
+    const res = await fetch('/api/backups', { signal: AbortSignal.timeout(FETCH_TIMEOUT) })
+    if (!res.ok) throw new Error(`获取备份列表失败 (${res.status})`)
+    const data = (await res.json()) as { backups: { file: string; sizeBytes: number; mtime: string }[] }
+    return data.backups || []
+  },
+
   exportAllData(): string {
     const provider = this.getAiProvider()
     const data = {

@@ -6,7 +6,11 @@ import AiConfigPrompt from './components/AiConfigPrompt.vue'
 import AiSettingsModal from './components/AiSettingsModal.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
 import LoginOverlay from './components/LoginOverlay.vue'
+import PasswordModal from './components/PasswordModal.vue'
+import TrashModal from './components/TrashModal.vue'
+import BackupsModal from './components/BackupsModal.vue'
 import { storage, authRequired, serverOnline, flush, logout } from './utils/storage'
+import { message } from './utils/notify'
 import { seedAllData } from './utils/seedData'
 import {
   HomeOutline,
@@ -22,6 +26,9 @@ const activeKey = ref(route.path)
 const sidebarOpen = ref(false)
 const aiPromptRef = ref<InstanceType<typeof AiConfigPrompt>>()
 const aiSettingsRef = ref<InstanceType<typeof AiSettingsModal>>()
+const passwordModalVisible = ref(false)
+const trashModalVisible = ref(false)
+const backupsModalVisible = ref(false)
 const settingsMenuOpen = ref(false)
 const confirmVisible = ref(false)
 const confirmTitle = ref('')
@@ -116,7 +123,7 @@ function importData(event: Event) {
       await flush()
       location.reload()
     } catch {
-      alert('导入失败，请检查文件格式')
+      message.error('导入失败，请检查文件格式')
     }
   }
   reader.readAsText(file)
@@ -145,8 +152,18 @@ async function handleLogout() {
   closeSettingsMenu()
   const ok = await showConfirm('退出登录', '确定要退出当前登录会话吗？退出不会删除任何数据。', false, '退出')
   if (!ok) return
+  // 等待未同步的增量推送完成，避免丢失刚录入的数据
+  await flush()
   await logout()
   location.reload()
+}
+
+// 主题切换
+const isDark = ref(document.documentElement.dataset.theme === 'dark')
+function toggleTheme() {
+  isDark.value = !isDark.value
+  document.documentElement.dataset.theme = isDark.value ? 'dark' : ''
+  localStorage.setItem('worklog_theme', isDark.value ? 'dark' : 'light')
 }
 
 // 登录成功后的整页刷新由 LoginOverlay 自行执行（emit 会在组件卸载后被 Vue 丢弃）
@@ -224,6 +241,19 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
                   清空数据
                 </button>
                 <div class="dropdown-divider"></div>
+                <button class="dropdown-item" @click="passwordModalVisible = true; closeSettingsMenu()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  修改访问密码
+                </button>
+                <button class="dropdown-item" @click="trashModalVisible = true; closeSettingsMenu()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>
+                  回收站
+                </button>
+                <button class="dropdown-item" @click="backupsModalVisible = true; closeSettingsMenu()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                  数据备份
+                </button>
+                <div class="dropdown-divider"></div>
                 <button class="dropdown-item" @click="handleLogout">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                   退出登录
@@ -232,7 +262,13 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
             </Transition>
           </div>
           <input ref="fileInputRef" type="file" accept=".json" style="display:none" @change="importData" />
-          <span class="footer-text">v1.1.0</span>
+          <div class="footer-row">
+            <button class="theme-toggle" @click="toggleTheme" :title="isDark ? '切换到浅色模式' : '切换到深色模式'">
+              <svg v-if="isDark" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+            <span class="footer-text">v2.0.0</span>
+          </div>
         </div>
       </aside>
 
@@ -250,6 +286,9 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
       </main>
     </div>
     <LoginOverlay v-if="authRequired" />
+    <PasswordModal v-model="passwordModalVisible" />
+    <TrashModal v-model="trashModalVisible" />
+    <BackupsModal v-model="backupsModalVisible" />
     <AiConfigPrompt ref="aiPromptRef" />
     <AiSettingsModal ref="aiSettingsRef" />
     <ConfirmModal :visible="confirmVisible" :title="confirmTitle" :message="confirmMessage" :confirm-text="confirmText" :danger="confirmDanger" @confirm="onConfirmOk" @cancel="onConfirmCancel" />
@@ -448,6 +487,21 @@ export default {
   font-size: 11px;
   color: var(--text-4);
 }
+
+.footer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 6px;
+  border: none; background: none; cursor: pointer;
+  color: var(--text-3);
+  transition: all var(--t-fast);
+}
+.theme-toggle:hover { background: var(--bg-hover); color: var(--text-1); }
 
 .offline-banner {
   padding: 8px 14px;

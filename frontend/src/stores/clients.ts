@@ -72,6 +72,11 @@ export const useClientsStore = defineStore('clients', () => {
   }
 
   function deleteClient(id: string) {
+    const client = getClientById(id)
+    if (client) storage.trash('client', client)
+    visitRecords.value
+      .filter((v) => v.clientId === id)
+      .forEach((v) => storage.trash('visit', v))
     clients.value = clients.value.filter((c) => c.id !== id)
     visitRecords.value = visitRecords.value.filter((v) => v.clientId !== id)
     saveClients()
@@ -179,6 +184,8 @@ export const useClientsStore = defineStore('clients', () => {
   }
 
   function deleteVisit(id: string) {
+    const visit = visitRecords.value.find((v) => v.id === id)
+    if (visit) storage.trash('visit', visit)
     visitRecords.value = visitRecords.value.filter((v) => v.id !== id)
     saveVisitRecords()
   }

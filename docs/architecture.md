@@ -1,203 +1,107 @@
 
 # 工作日志管理系统 - 技术架构文档
 
-## 1. 架构设计
+> 更新于 v2.0.0。v1.x 的纯浏览器（localStorage）架构已废弃，当前为客户端/服务器架构。
+
+## 1. 总体架构
 
 ```mermaid
 graph TB
-    subgraph "前端 (Vue 3 + Vite)"
-        A[组件层] --> B[状态管理 (Pinia)]
-        A --> C[路由 (Vue Router)]
-        B --> D[数据存储 (LocalStorage + IndexedDB)]
+    subgraph "浏览器（任意设备）"
+        UI["Vue 3 单页应用<br/>Pinia stores + 组件"]
+        CACHE["内存缓存层<br/>utils/storage.ts"]
     end
-    
-    subgraph "外部服务"
-        E[大模型 API]
+    subgraph "服务器（同一 Node 进程）"
+        HTTP["server/server.js<br/>静态托管 + REST API + 认证"]
+        AI["server/ai.js<br/>AI 上游代理"]
+        DB["server/db.js<br/>node:sqlite"]
     end
-    
-    A --&gt; E
+    subgraph "存储"
+        SQLITE[("data/worklog.sqlite")]
+        BACKUPS[("data/backups/*.sqlite<br/>自动轮转备份")]
+    end
+    UI --> CACHE -->|增量 upsert/delete| HTTP
+    HTTP --> DB --> SQLITE
+    DB --> BACKUPS
+    HTTP --> AI -->|转发| UPSTREAM["OpenAI 兼容 API<br/>DeepSeek / Qwen / GLM ..."]
 ```
 
-## 2. 技术选型
+一个 Node 进程同时提供前端静态托管和 `/api` 接口（端口 4173），前后端同源、无 CORS。
 
-- **前端框架**: Vue 3 + Composition API + TypeScript
-- **构建工具**: Vite
-- **UI 组件库**: Naive UI
-- **状态管理**: Pinia
-- **路由**: Vue Router
-- **样式**: Tailwind CSS
-- **数据存储**: LocalStorage (基础配置) + IndexedDB (日志、项目、待办数据)
-- **图表**: ECharts
+## 2. 技术栈
 
-## 3. 路由定义
+| 层 | 技术 |
+|---|---|
+| 前端 | Vue 3 + TypeScript + Vite + Pinia + Vue Router + Naive UI |
+| 富文本渲染 | marked + DOMPurify（AI/导入内容消毒后 v-html） |
+| 后端 | Node.js ≥ 24，零 npm 依赖（http 模块 + 内置 node:sqlite） |
+| 存储 | SQLite（WAL 模式），9 个集合 + 配置 + 会话 |
+| 认证 | 单用户密码（sha256+salt），HttpOnly Cookie 会话（30 天） |
+| AI | 服务端代理到 OpenAI 兼容接口，Key 只存服务端 |
 
-| 路由 | 页面组件 | 用途 |
-|------|----------|------|
-| / | Dashboard | 工作台（首页） |
-| /calendar | Calendar | 日历视图 |
-| /projects | Projects | 项目列表 |
-| /projects/:id | ProjectDetail | 项目详情 |
-| /todos | Todos | 待办事项 |
-| /ai-assistant | AiAssistant | 智能助手 |
-| /settings | Settings | 设置 |
+## 3. 数据模型
 
-## 4. 数据模型
+SQLite 三张表：
 
-### 4.1 数据模型定义
+- **collections** `(name, id, seq, data JSON)` —— 9 个集合：projects / todos / workLogs / clients / visitRecords / reports / planTasks / aiMessages / **deleted**（回收站）
+- **settings** `(name, data JSON)` —— aiProvider（含 apiKey）、projectPhases、meta（seeded/seededWith）
+- **sessions** `(token, expires_at)` —— 登录会话
 
-```mermaid
-erDiagram
-    PROJECT ||--o{ TODO : has
-    PROJECT ||--o{ WORK_LOG : has
-    TODO {
-        string id
-        string title
-        string description
-        string status
-        string priority
-        date dueDate
-        string projectId
-        date createdAt
-        date updatedAt
-    }
-    PROJECT {
-        string id
-        string name
-        string description
-        number progress
-        date startDate
-        date endDate
-        string status
-        date createdAt
-        date updatedAt
-    }
-    WORK_LOG {
-        string id
-        date date
-        string content
-        string projectId
-        date createdAt
-        date updatedAt
-    }
-```
+## 4. 数据同步协议（多设备安全的核心）
 
-### 4.2 TypeScript 类型定义
+- 前端每个集合维护 `lastSynced` 快照；保存操作计算出**实体级增量**（upserts + deletes），
+  `POST /api/collections/:name/changes` 按实体应用。多设备并发编辑时只触碰各自提交的 id，
+  不会整表互相覆盖；同一实体同时被修改时 last-write-wins。
+- 比较使用键序无关的规范化 JSON（`stableStringify`），字段顺序漂移不产生误报增量。
+- 窗口获得焦点时拉取服务器状态合并（有未同步本地更改时跳过）；页面关闭时 sendBeacon 兜底。
+- 所有请求带 15s 超时；同步失败进入离线模式横幅提示，稍后自动补同步。
 
-```typescript
-// 项目类型
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  progress: number; // 0-100
-  startDate: string;
-  endDate?: string;
-  status: 'planning' | 'in_progress' | 'completed' | 'paused';
-  createdAt: string;
-  updatedAt: string;
-}
+## 5. 认证与安全
 
-// 待办类型
-interface Todo {
-  id: string;
-  title: string;
-  description?: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  priority: 'low' | 'medium' | 'high';
-  dueDate?: string;
-  projectId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+- `POST /api/auth/login`：sha256(salt+password) 校验，签发 30 天会话（HttpOnly + SameSite=Lax）
+- 除 login/health 外所有 `/api` 接口需要会话（Cookie 或 Bearer）
+- 登录与改密接口共享限流（每 IP 每 5 分钟 10 次）
+- 密码来源：环境变量 `AUTH_PASSWORD` 优先，否则 `data/config.json`（首启生成随机密码）
+- 改密码端点成功后使其他设备会话失效
+- AI Key 只存在服务端 settings 表；导出 JSON 备份自动剔除
+- 静态服务路径穿越防护；上传体积 10MB 上限；SPA 回退
 
-// 工作日志类型
-interface WorkLog {
-  id: string;
-  date: string; // YYYY-MM-DD
-  content: string;
-  projectId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+## 6. 自动备份
 
-// AI 对话消息类型
-interface AiMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-}
-```
+`VACUUM INTO` 一致性快照，触发：启动 / 每 24 小时 / 导入数据前；保留最近 14 份。
+应用内「系统设置 → 数据备份」可查看与下载；`POST /api/backup` 手动触发。
 
-## 5. 项目结构
+## 7. 回收站
+
+删除的项目/日志/待办/客户/拜访/报告/计划任务进入 `deleted` 集合（含原数据与时间戳），
+30 天后应用初始化时自动清除；应用内「系统设置 → 回收站」可恢复或彻底删除。
+
+## 8. 前端数据层
+
+`utils/storage.ts` 维持与旧 localStorage 版一致的**同步**读写签名，内部为
+"内存缓存 + 增量推送"，stores / views / services 无感知迁移。路由守卫
+（`router/index.ts`）在首次导航前完成 `ensureInit`、演示数据播种和旧版数据合并迁移
+（按 id 合并，不覆盖服务器已有数据），任何异常不阻断导航。
+
+## 9. 目录结构
 
 ```
-Work Log Management System-Personal/
-├── frontend/
-│   ├── src/
-│   │   ├── components/       # 通用组件
-│   │   ├── views/            # 页面组件
-│   │   ├── stores/           # Pinia 状态管理
-│   │   ├── router/           # 路由配置
-│   │   ├── utils/            # 工具函数
-│   │   ├── types/            # TypeScript 类型定义
-│   │   ├── App.vue
-│   │   └── main.ts
-│   ├── index.html
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── tailwind.config.js
-│   └── tsconfig.json
-└── 需求文档.md
+server/
+  server.js   # HTTP 服务、认证、API 路由、静态托管、备份调度
+  db.js       # SQLite 封装（集合/设置/会话/备份）
+  ai.js       # AI 上游代理（含 max_tokens 降级兼容）
+  test/api.test.js  # API 集成测试（node --test）
+frontend/src/
+  utils/storage.ts     # 缓存 + 增量同步数据层（diff/merge 纯函数有单测）
+  utils/legacyMigration.ts  # v1.x localStorage 数据迁移
+  utils/date.ts        # 本地日期工具（全项目统一）
+  stores/              # Pinia（planTasks 已收编为正式 store）
+  components/          # LoginOverlay / TrashModal / BackupsModal / PasswordModal 等
+  views/               # Dashboard / Calendar / Projects / Todos / Clients / Settings
 ```
 
-## 6. 核心功能实现思路
+## 10. 测试与部署
 
-### 6.1 数据持久化
-- 使用 LocalStorage 存储用户配置和轻量级数据
-- 使用 IndexedDB 存储大量的日志、项目、待办数据
-- 实现数据的导入导出功能（JSON 格式）
-
-### 6.2 日历视图
-- 基于原生 Date API 实现日历逻辑
-- 支持月份切换和日期选择
-- 点击日期添加/编辑当天日志
-
-### 6.3 智能助手
-- 预留大模型 API 接口
-- 提供日志模板、周报生成等预置功能
-- 对话式交互界面
-
-## 7. 初始数据
-
-```typescript
-// 示例项目数据
-const sampleProjects: Project[] = [
-  {
-    id: '1',
-    name: 'XX 国企信息化平台建设',
-    description: '企业数字化转型核心项目',
-    progress: 45,
-    startDate: '2024-01-15',
-    endDate: '2024-12-31',
-    status: 'in_progress',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
-
-// 示例待办数据
-const sampleTodos: Todo[] = [
-  {
-    id: '1',
-    title: '编写项目需求文档',
-    description: '与客户确认需求并形成正式文档',
-    status: 'completed',
-    priority: 'high',
-    projectId: '1',
-    dueDate: '2024-02-28',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
-```
+- 前端：`npm run build`（vue-tsc + vite）、`npm test`（vitest，同步层单测 15 用例）
+- 后端：`npm test`（node --test，API 集成测试 15 用例）
+- 部署：Docker / NAS / 云服务器见 `docs/deployment.md`
