@@ -271,13 +271,14 @@ watch(() => route.path, () => {
         </div>
       </div>
 
-      <div v-if="overdueTodos.length || todayTodos.length || upcomingTodos.length" class="focus-row-wrap">
-        <div v-if="overdueTodos.length || todayTodos.length" class="focus-card">
+      <div class="focus-row-wrap">
+        <div class="focus-card">
           <div class="focus-header">
             <span class="focus-title">🔴 今日关注</span>
             <span class="focus-count">{{ overdueTodos.length + todayTodos.length }}</span>
           </div>
           <div class="focus-body">
+            <div v-if="!overdueTodos.length && !todayTodos.length" class="card-empty">✅ 无逾期或今日到期事项</div>
             <div v-if="overdueTodos.length" class="focus-tier">
               <div class="tier-head">
                 <span class="tier-dot tier-dot-red"></span>
@@ -302,12 +303,13 @@ watch(() => route.path, () => {
           </div>
         </div>
 
-        <div v-if="upcomingTodos.length" class="focus-card">
+        <div class="focus-card">
           <div class="focus-header">
             <span class="focus-title">📅 本周关注</span>
             <span class="focus-count">{{ upcomingTodos.filter(t => t.status !== 'completed').length }} 待处理</span>
           </div>
           <div class="focus-body">
+            <div v-if="!upcomingTodos.length" class="card-empty">✅ 本周暂无到期事项</div>
             <div v-for="t in upcomingTodos.slice(0, 6)" :key="t.id" class="focus-item" @click="router.push('/todos')">
               <button class="focus-check" :class="{ 'check-done': t.status === 'completed' }" @click.stop="toggleTodoStatus(t)"></button>
               <span :class="['focus-text', { 'focus-text-done': t.status === 'completed' }]">{{ t.title }}</span>
@@ -317,13 +319,14 @@ watch(() => route.path, () => {
         </div>
       </div>
 
-      <div v-if="bidDeadlines.length || followUpClients.length" class="focus-row-wrap" style="margin-top:-2px">
-        <div v-if="bidDeadlines.length" class="focus-card">
+      <div class="focus-row-wrap" style="margin-top:-2px">
+        <div class="focus-card">
           <div class="focus-header">
             <span class="focus-title">🔥 投标截止提醒</span>
             <span class="focus-count">{{ bidDeadlines.length }}</span>
           </div>
           <div class="focus-body">
+            <div v-if="!bidDeadlines.length" class="card-empty">✅ 近 7 天无标书递交截止</div>
             <div v-for="o in bidDeadlines.slice(0, 6)" :key="o.id" class="focus-item" @click="router.push('/opportunities')">
               <span class="focus-text">{{ o.name }}</span>
               <span class="focus-date" :class="{ 'focus-date-red': (o.bidDeadline || '') <= today() }">
@@ -333,12 +336,13 @@ watch(() => route.path, () => {
           </div>
         </div>
 
-        <div v-if="followUpClients.length" class="focus-card">
+        <div class="focus-card">
           <div class="focus-header">
             <span class="focus-title">🤝 客户跟进提醒</span>
             <span class="focus-count">{{ followUpClients.length }}</span>
           </div>
           <div class="focus-body">
+            <div v-if="!followUpClients.length" class="card-empty">✅ 暂无待跟进客户</div>
             <div v-for="c in followUpClients.slice(0, 6)" :key="c.id" class="focus-item" @click="router.push('/clients/' + c.id)">
               <span class="focus-text">{{ c.name }}</span>
               <span class="focus-date" :class="{ 'focus-date-red': (c.nextFollowUpDate || '') < today() }">
@@ -350,13 +354,14 @@ watch(() => route.path, () => {
         </div>
       </div>
 
-      <div v-if="nextWeekTodos.length" class="focus-row-wrap" style="margin-top:-2px">
+      <div class="focus-row-wrap" style="margin-top:-2px">
         <div class="focus-card" style="grid-column: 1 / -1">
           <div class="focus-header">
             <span class="focus-title">📋 下周计划</span>
             <span class="focus-count">{{ nextWeekTodos.length }} 项</span>
           </div>
           <div class="focus-body focus-body-grid">
+            <div v-if="!nextWeekTodos.length" class="card-empty">✅ 下周暂无计划事项</div>
             <div v-for="t in nextWeekTodos.slice(0, 6)" :key="t.id" class="focus-item" @click="router.push('/todos')">
               <button class="focus-check" @click.stop="toggleTodoStatus(t)"></button>
               <span class="focus-text">{{ t.title }}</span>
