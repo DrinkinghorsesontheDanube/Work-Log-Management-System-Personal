@@ -149,10 +149,7 @@ async function handleLogout() {
   location.reload()
 }
 
-// 登录成功后整页刷新：路由守卫会重新执行 ensureInit 完成数据加载
-function onAuthenticated() {
-  location.reload()
-}
+// 登录成功后的整页刷新由 LoginOverlay 自行执行（emit 会在组件卸载后被 Vue 丢弃）
 
 function handleClickOutside(e: Event) {
   const target = e.target as HTMLElement
@@ -252,7 +249,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
         <router-view />
       </main>
     </div>
-    <LoginOverlay v-if="authRequired" @authenticated="onAuthenticated" />
+    <LoginOverlay v-if="authRequired" />
     <AiConfigPrompt ref="aiPromptRef" />
     <AiSettingsModal ref="aiSettingsRef" />
     <ConfirmModal :visible="confirmVisible" :title="confirmTitle" :message="confirmMessage" :confirm-text="confirmText" :danger="confirmDanger" @confirm="onConfirmOk" @cancel="onConfirmCancel" />

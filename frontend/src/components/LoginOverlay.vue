@@ -2,8 +2,6 @@
 import { ref } from 'vue'
 import { login } from '../utils/storage'
 
-const emit = defineEmits<{ (e: 'authenticated'): void }>()
-
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
@@ -14,7 +12,10 @@ async function submit() {
   error.value = ''
   try {
     await login(password.value)
-    emit('authenticated')
+    // 登录成功后整页刷新，让路由守卫重新初始化。
+    // 必须直接在这里 reload：login() 已把 authRequired 置 false，Vue 会在微任务中
+    // 卸载本组件，卸载后 emit 出去的事件会被静默丢弃，reload 将永远不会执行。
+    location.reload()
   } catch (e) {
     error.value = e instanceof Error ? e.message : '登录失败'
   } finally {
