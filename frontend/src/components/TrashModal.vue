@@ -15,6 +15,7 @@ const TYPE_LABELS: Record<DeletedType, string> = {
   visit: '拜访记录',
   report: '报告',
   planTask: '计划任务',
+  opportunity: '商机',
 }
 
 const entries = ref<DeletedEntry[]>([])

@@ -11,6 +11,7 @@ import { chatWithAI, isAiConfigured } from '../services/aiService'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { formatDateTime, todayStr } from '../utils/date'
+import { message } from '../utils/notify'
 
 const workLogsStore = useWorkLogsStore()
 const showAiConfigPrompt = inject<() => void>('showAiConfigPrompt', () => {})
@@ -404,8 +405,23 @@ async function generateReport() {
   }
 }
 
-function fallbackCopy(text: string, done: () => void) {
-  const ta = document.createElement('textarea')
+/** 报告导出为 .md 文件（文件名：日报_2026-09-06.md 之类） */
+function exportReport() {
+  if (!reportContent.value.trim()) return message.warning('报告内容为空，请先生成或编辑')
+  const typeLabel = summaryTab.value === 'day' ? '日报' : summaryTab.value === 'week' ? '周报' : '月报'
+  const safeName = summaryTitle.value.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_')
+  const blob = new Blob([reportContent.value], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${typeLabel}_${safeName}.md`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
+
+function fallbackCopy(text: string, done: () => void) {  const ta = document.createElement('textarea')
   ta.value = text
   ta.style.position = 'fixed'
   ta.style.opacity = '0'
@@ -616,6 +632,7 @@ onMounted(() => {
                 <button class="btn btn-sm" @click="generateReport" :disabled="aiLoading">{{ aiLoading ? '生成中...' : '生成' }}</button>
                 <button class="btn btn-sm" @click="previewMode = !previewMode">{{ previewMode ? '编辑' : '预览' }}</button>
                 <button class="btn btn-sm" @click="copyReport">{{ copyTip ? '已复制 ✓' : '复制' }}</button>
+                <button class="btn btn-sm" @click="exportReport" title="下载 Markdown 文件">导出 .md</button>
                 <button class="btn btn-sm btn-primary" @click="saveReport">保存</button>
               </div>
             </div>

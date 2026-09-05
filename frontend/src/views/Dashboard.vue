@@ -5,11 +5,13 @@ import { useProjectsStore } from '../stores/projects'
 import { useTodosStore } from '../stores/todos'
 import { useWorkLogsStore } from '../stores/workLogs'
 import { useClientsStore } from '../stores/clients'
+import { useOpportunitiesStore } from '../stores/opportunities'
 import { analyzeEntry, confirmEntry, analyzeEntryWithAI } from '../services/smartEntry'
 import type { PendingEntry } from '../services/smartEntry'
 import { WORK_CATEGORIES } from '../types'
 import type { Todo } from '../types'
 import { isAiConfigured } from '../services/aiService'
+import { message } from '../utils/notify'
 import { addDaysStr, fmtDate, mondayOf, todayStr } from '../utils/date'
 
 const router = useRouter()
@@ -18,6 +20,7 @@ const projectsStore = useProjectsStore()
 const todosStore = useTodosStore()
 const workLogsStore = useWorkLogsStore()
 const clientsStore = useClientsStore()
+const opportunitiesStore = useOpportunitiesStore()
 const showAiConfigPrompt = inject<() => void>('showAiConfigPrompt', () => {})
 
 const aiInput = ref('')
@@ -85,6 +88,35 @@ const nextWeekTodos = computed(() => {
 
 function toggleTodoStatus(todo: Todo) {
   todosStore.updateTodo(todo.id, { status: todo.status === 'completed' ? 'pending' : 'completed' })
+}
+
+// —— 投标截止提醒（未来 7 天内递交截止的活跃商机）——
+const bidDeadlines = computed(() => opportunitiesStore.deadlinesWithin(7))
+
+function bidCountdown(dateStr: string): string {
+  if (!dateStr) return ''
+  const target = new Date(dateStr + 'T00:00:00')
+  const now = new Date()
+  now.setHours(0, 0, 0, 0)
+  const days = Math.ceil((target.getTime() - now.getTime()) / 86400000)
+  if (days < 0) return `已逾期${Math.abs(days)}天`
+  if (days === 0) return '今天截止'
+  return `还剩${days}天`
+}
+
+// —— 客户跟进提醒（跟进日到期/超期，流失客户除外）——
+const followUpClients = computed(() =>
+  clientsStore.clients
+    .filter(c => c.followUpStatus !== 'lost' && c.nextFollowUpDate && c.nextFollowUpDate <= today())
+    .sort((a, b) => (a.nextFollowUpDate || '').localeCompare(b.nextFollowUpDate || ''))
+)
+
+function markFollowed(clientId: string) {
+  clientsStore.updateClient(clientId, {
+    lastContactDate: today(),
+    nextFollowUpDate: null
+  })
+  message.success('已标记跟进')
 }
 
 function friendlyDate(dateStr: string) {
@@ -169,6 +201,7 @@ onMounted(() => {
   todosStore.loadTodos()
   workLogsStore.loadWorkLogs()
   clientsStore.loadClients()
+  opportunitiesStore.loadOpportunities()
   refreshAiStatus()
   window.addEventListener('ai-config-changed', refreshAiStatus)
 })
@@ -279,6 +312,39 @@ watch(() => route.path, () => {
               <button class="focus-check" :class="{ 'check-done': t.status === 'completed' }" @click.stop="toggleTodoStatus(t)"></button>
               <span :class="['focus-text', { 'focus-text-done': t.status === 'completed' }]">{{ t.title }}</span>
               <span class="focus-date">{{ friendlyDate(t.dueDate) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="bidDeadlines.length || followUpClients.length" class="focus-row-wrap" style="margin-top:-2px">
+        <div v-if="bidDeadlines.length" class="focus-card">
+          <div class="focus-header">
+            <span class="focus-title">🔥 投标截止提醒</span>
+            <span class="focus-count">{{ bidDeadlines.length }}</span>
+          </div>
+          <div class="focus-body">
+            <div v-for="o in bidDeadlines.slice(0, 6)" :key="o.id" class="focus-item" @click="router.push('/opportunities')">
+              <span class="focus-text">{{ o.name }}</span>
+              <span class="focus-date" :class="{ 'focus-date-red': (o.bidDeadline || '') <= today() }">
+                {{ o.bidDeadline?.slice(5) }} · {{ bidCountdown(o.bidDeadline) }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="followUpClients.length" class="focus-card">
+          <div class="focus-header">
+            <span class="focus-title">🤝 客户跟进提醒</span>
+            <span class="focus-count">{{ followUpClients.length }}</span>
+          </div>
+          <div class="focus-body">
+            <div v-for="c in followUpClients.slice(0, 6)" :key="c.id" class="focus-item" @click="router.push('/clients/' + c.id)">
+              <span class="focus-text">{{ c.name }}</span>
+              <span class="focus-date" :class="{ 'focus-date-red': (c.nextFollowUpDate || '') < today() }">
+                {{ c.nextFollowUpDate === today() ? '今天该跟进' : '已逾期' }}
+              </span>
+              <button class="fu-btn" @click.stop="markFollowed(c.id)">已跟进</button>
             </div>
           </div>
         </div>
@@ -675,4 +741,17 @@ select.edit-input { cursor: pointer; }
 
 @media (max-width: 1024px) { .dashboard { flex-direction: column; } .dash-right { width: 100%; position: static; } }
 @media (max-width: 768px) { .page-header { flex-direction: column; align-items: flex-start; gap: 12px; } .mid-grid { grid-template-columns: 1fr; } }
+
+.fu-btn {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--t-fast);
+}
+.fu-btn:hover { border-color: var(--primary); color: var(--primary); }
 </style>

@@ -1,4 +1,13 @@
-import type { Client, Project, WorkLog, Todo, PhaseRecord, PlanTask, Report } from '../types'
+import type {
+  Client,
+  Project,
+  WorkLog,
+  Todo,
+  PhaseRecord,
+  PlanTask,
+  Report,
+  Opportunity,
+} from '../types'
 import { storage } from './storage'
 import { addDaysStr } from './date'
 
@@ -1466,6 +1475,52 @@ export function seedAllData() {
     },
   ]
 
+  // 演示商机（未来 7 天内安排一个截止，方便体验倒计时提醒）
+  const opportunities: Opportunity[] = [
+    {
+      id: id('opp', 1),
+      name: '区县智慧应急指挥调度平台采购项目',
+      stage: 'bidding',
+      expectedAmount: 860,
+      clientId: clients[2]?.id ?? null,
+      competitor: '某某信息技术有限公司',
+      bidDeadline: addDaysStr(4),
+      openBidDate: addDaysStr(9),
+      depositDueDate: addDaysStr(3),
+      note: '标书技术部分已完稿，商务部分等成本核算。',
+      createdAt: iso(daysAgo(30)),
+      updatedAt: iso(daysAgo(1)),
+    },
+    {
+      id: id('opp', 2),
+      name: '市域社会治理现代化平台项目',
+      stage: 'solution',
+      expectedAmount: 520,
+      clientId: clients[0]?.id ?? null,
+      competitor: '',
+      bidDeadline: addDaysStr(20),
+      openBidDate: '',
+      depositDueDate: '',
+      note: '等客户预算批复，方案已给到第二版。',
+      createdAt: iso(daysAgo(18)),
+      updatedAt: iso(daysAgo(2)),
+    },
+    {
+      id: id('opp', 3),
+      name: '教育信息化2.0提升工程运维服务',
+      stage: 'won',
+      expectedAmount: 180,
+      clientId: clients[3]?.id ?? null,
+      competitor: '',
+      bidDeadline: daysAgo(25),
+      openBidDate: daysAgo(20),
+      depositDueDate: daysAgo(26),
+      note: '已签约，转入项目交付。',
+      createdAt: iso(daysAgo(60)),
+      updatedAt: iso(daysAgo(20)),
+    },
+  ]
+
   storage.saveClients(clients)
   storage.saveVisitRecords(visitRecords)
   storage.saveProjects(projects)
@@ -1473,4 +1528,5 @@ export function seedAllData() {
   storage.saveTodos(todos)
   storage.savePlanTasks(planTasks)
   storage.saveReports(reports)
+  storage.saveOpportunities(opportunities)
 }

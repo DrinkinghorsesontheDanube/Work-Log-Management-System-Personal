@@ -17,7 +17,8 @@ import {
   CalendarOutline,
   FolderOpenOutline,
   CheckboxOutline,
-  PeopleOutline
+  PeopleOutline,
+  TrendingUpOutline
 } from '@vicons/ionicons5'
 
 const router = useRouter()
@@ -69,6 +70,7 @@ const menuItems = [
   { label: '工作台', key: '/', icon: HomeOutline },
   { label: '日历', key: '/calendar', icon: CalendarOutline },
   { label: '项目', key: '/projects', icon: FolderOpenOutline },
+  { label: '商机', key: '/opportunities', icon: TrendingUpOutline },
   { label: '客户', key: '/clients', icon: PeopleOutline },
   { label: '待办', key: '/todos', icon: CheckboxOutline }
 ]

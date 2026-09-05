@@ -177,6 +177,38 @@ export interface AiMessage {
   timestamp: string
 }
 
+/** 商机阶段：从线索到中标/落标 */
+export type OpportunityStage = 'lead' | 'solution' | 'bidding' | 'waiting' | 'won' | 'lost'
+
+export const OPPORTUNITY_STAGES: { id: OpportunityStage; name: string; color: string }[] = [
+  { id: 'lead', name: '线索', color: '#94a3b8' },
+  { id: 'solution', name: '方案', color: '#3b82f6' },
+  { id: 'bidding', name: '投标', color: '#f59e0b' },
+  { id: 'waiting', name: '等结果', color: '#8b5cf6' },
+  { id: 'won', name: '中标', color: '#10b981' },
+  { id: 'lost', name: '落标', color: '#ef4444' },
+]
+
+export interface Opportunity {
+  id: string
+  name: string
+  stage: OpportunityStage
+  /** 预计金额（万元） */
+  expectedAmount: number
+  clientId: string | null
+  /** 主要竞争对手 */
+  competitor: string
+  /** 标书递交截止 */
+  bidDeadline: string
+  /** 开标日 */
+  openBidDate: string
+  /** 保证金缴纳截止 */
+  depositDueDate: string
+  note: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface AiProvider {
   id: string
   name: string

@@ -36,6 +36,7 @@ const COLLECTION_NAMES = [
   'reports',
   'planTasks',
   'aiMessages',
+  'opportunities',
   'deleted',
 ]
 

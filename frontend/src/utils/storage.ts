@@ -9,6 +9,7 @@ import type {
   Report,
   PlanTask,
   VisitRecord,
+  Opportunity,
 } from '../types'
 import { DEFAULT_PHASES } from '../types'
 import { ref } from 'vue'
@@ -39,6 +40,7 @@ const COLLECTION_NAMES = [
   'reports',
   'planTasks',
   'aiMessages',
+  'opportunities',
   'deleted',
 ] as const
 type CollectionName = (typeof COLLECTION_NAMES)[number]
@@ -57,6 +59,7 @@ const cache: Record<CollectionName, unknown[]> = {
   reports: [],
   planTasks: [],
   aiMessages: [],
+  opportunities: [],
   deleted: [],
 }
 /** 每个集合最近一次与服务器确认一致的状态（id -> JSON），用于计算增量 */
@@ -69,6 +72,7 @@ const lastSynced: Record<CollectionName, Map<string, string>> = {
   reports: new Map(),
   planTasks: new Map(),
   aiMessages: new Map(),
+  opportunities: new Map(),
   deleted: new Map(),
 }
 /** 本地有未同步到服务器的更改（推送成功后清除；期间不会做焦点刷新覆盖） */
@@ -81,6 +85,7 @@ const dirty: Record<CollectionName, boolean> = {
   reports: false,
   planTasks: false,
   aiMessages: false,
+  opportunities: false,
   deleted: false,
 }
 
@@ -112,6 +117,7 @@ export type DeletedType =
   | 'visit'
   | 'report'
   | 'planTask'
+  | 'opportunity'
 
 const DELETED_TYPE_COLLECTION: Record<DeletedType, CollectionName> = {
   todo: 'todos',
@@ -121,6 +127,7 @@ const DELETED_TYPE_COLLECTION: Record<DeletedType, CollectionName> = {
   visit: 'visitRecords',
   report: 'reports',
   planTask: 'planTasks',
+  opportunity: 'opportunities',
 }
 
 let initialized = false
@@ -439,6 +446,13 @@ export const storage = {
   savePlanTasks(tasks: PlanTask[]) {
     cache.planTasks = tasks
     scheduleCollection('planTasks')
+  },
+  getOpportunities(): Opportunity[] {
+    return cache.opportunities as Opportunity[]
+  },
+  saveOpportunities(items: Opportunity[]) {
+    cache.opportunities = items
+    scheduleCollection('opportunities')
   },
 
   // —— 回收站 ——
