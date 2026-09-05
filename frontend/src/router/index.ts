@@ -63,36 +63,53 @@ const router = createRouter({
 // 数据来源优先级：本浏览器 localStorage 的旧版数据（无缝升级）> 服务器已有数据 > 演示数据。
 // 迁移是按 id 合并：即使服务器已被其他设备先播种演示数据甚至录入了新内容，
 // 旧数据迁移也只会新增/覆盖同 id 条目，不会删掉服务器上已有的其他数据。
+//
+// 重要：无论初始化/迁移是否出错，守卫都必须放行导航——否则首次导航被中断，
+// router-view 会渲染空白（侧边栏正常、内容区空白）。失败只记录，稍后自动补同步。
 const MIGRATED_FLAG = 'worklog_migrated_v2'
 
 router.beforeEach(async () => {
   try {
     await ensureInit()
-  } catch {
+  } catch (e) {
     if (authRequired.value) return false // 未登录，由登录组件接管
     // 服务器不可达：进入离线模式（内存运行），页面照常展示
+    console.error('[init] 服务器不可达，进入离线模式:', e)
   }
-  const legacy = readLegacyData()
-  const alreadyMigrated = localStorage.getItem(MIGRATED_FLAG) === '1'
-  if (needsSeed.value) {
-    if (legacy) {
+  try {
+    const legacy = readLegacyData()
+    const alreadyMigrated = localStorage.getItem(MIGRATED_FLAG) === '1'
+    if (needsSeed.value) {
+      if (legacy) {
+        storage.mergeLegacyData(legacy)
+        localStorage.setItem(MIGRATED_FLAG, '1')
+        await flush()
+        await markSeeded('legacy')
+      } else {
+        seedAllData()
+        await flush()
+        await markSeeded('demo')
+      }
+    } else if (legacy && !alreadyMigrated && seededWith.value === 'demo') {
+      // 服务器只有演示数据，本机有真实旧数据：合并迁移
       storage.mergeLegacyData(legacy)
       localStorage.setItem(MIGRATED_FLAG, '1')
       await flush()
       await markSeeded('legacy')
-    } else {
-      seedAllData()
-      await flush()
-      await markSeeded('demo')
     }
-  } else if (legacy && !alreadyMigrated && seededWith.value === 'demo') {
-    // 服务器只有演示数据，本机有真实旧数据：合并迁移
-    storage.mergeLegacyData(legacy)
-    localStorage.setItem(MIGRATED_FLAG, '1')
-    await flush()
-    await markSeeded('legacy')
+  } catch (e) {
+    console.error('[init] 数据迁移失败（不影响页面展示，稍后自动补同步）:', e)
+    const w = window as unknown as { __initErrors?: string[] }
+    w.__initErrors = [...(w.__initErrors || []), String((e as Error)?.message || e)]
   }
   return true
+})
+
+// 导航错误只记录，避免静默失败难以排查
+router.onError((e) => {
+  console.error('[router] 导航错误:', e)
+  const w = window as unknown as { __routerErrors?: string[] }
+  w.__routerErrors = [...(w.__routerErrors || []), String((e as Error)?.message || e)]
 })
 
 export default router

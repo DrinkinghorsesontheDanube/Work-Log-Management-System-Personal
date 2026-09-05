@@ -113,6 +113,7 @@ function handleSyncError(e: unknown) {
 function snapshotMap(name: CollectionName): Map<string, string> {
   const map = new Map<string, string>()
   for (const item of cache[name] as { id: unknown }[]) {
+    if (!isValidItem(item)) continue
     map.set(String(item.id), JSON.stringify(item))
   }
   return map
@@ -123,6 +124,7 @@ function computeDiff(name: CollectionName): CollectionDiff {
   const currentIds = new Set<string>()
   const upserts: unknown[] = []
   for (const item of cache[name] as { id: unknown }[]) {
+    if (!isValidItem(item)) continue
     const id = String(item.id)
     currentIds.add(id)
     if (synced.get(id) !== JSON.stringify(item)) upserts.push(item)
@@ -144,6 +146,7 @@ async function pushCollection(name: CollectionName) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(diff),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT),
   })
   if (!res.ok) throw new Error(`保存失败 (${res.status})`)
   lastSynced[name] = snapshotMap(name)
@@ -161,6 +164,7 @@ async function pushSettings(path: string, body: unknown) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT),
   })
   if (!res.ok) throw new Error(`保存设置失败 (${res.status})`)
   serverOnline.value = true
@@ -168,11 +172,13 @@ async function pushSettings(path: string, body: unknown) {
 
 // —— 初始化与认证 ——
 
+const FETCH_TIMEOUT = 15_000
+
 export async function ensureInit(): Promise<void> {
   if (initialized) return
   let res: Response
   try {
-    res = await fetch('/api/state')
+    res = await fetch('/api/state', { signal: AbortSignal.timeout(FETCH_TIMEOUT) })
   } catch {
     serverOnline.value = false
     initialized = true
@@ -218,7 +224,7 @@ async function refreshFromServer(): Promise<void> {
   if (COLLECTION_NAMES.some((name) => dirty[name])) return
   if (pendingChains.size > 0) return
   try {
-    const res = await fetch('/api/state')
+    const res = await fetch('/api/state', { signal: AbortSignal.timeout(FETCH_TIMEOUT) })
     if (!res.ok) return
     adoptServerState(await res.json())
     serverOnline.value = true
@@ -270,10 +276,10 @@ export async function logout(): Promise<void> {
   }
 }
 
-/** 等待所有在途的服务器写入完成（导入/清空/播种后、页面刷新前调用） */
+/** 等待所有在途的服务器写入结束（无论成败），用于导入/清空/播种后、页面刷新前 */
 export async function flush(): Promise<void> {
   const tasks = [...pendingChains.values()]
-  if (tasks.length) await Promise.all(tasks)
+  if (tasks.length) await Promise.allSettled(tasks)
 }
 
 export async function markSeeded(kind: 'legacy' | 'demo'): Promise<void> {
