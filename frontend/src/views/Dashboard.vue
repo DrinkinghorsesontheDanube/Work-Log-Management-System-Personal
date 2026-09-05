@@ -567,6 +567,8 @@ watch(() => route.path, () => {
 .focus-row-wrap {
   display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;
 }
+/* 同行另一张卡片无内容被隐藏时，剩下的卡片占满整行，避免留空位 */
+.focus-row-wrap .focus-card:only-child { grid-column: 1 / -1; }
 .focus-card {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius);
