@@ -6,7 +6,8 @@
   "description": "WorkLog 后端：静态托管 + SQLite 存储 + AI 代理（零依赖，需 Node.js >= 24）",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test test/api.test.js"
   },
   "engines": {
     "node": ">=24"

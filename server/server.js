@@ -7,6 +7,8 @@ import {
   openDb,
   getCollection,
   saveCollection,
+  applyCollectionChanges,
+  backupDb,
   getSetting,
   setSetting,
   pruneSessions,
@@ -148,6 +150,17 @@ function applyImport(data) {
   const meta = getSetting(db, 'meta') || {}
   meta.seeded = true
   setSetting(db, 'meta', meta)
+}
+
+// ---------- 自动备份 ----------
+
+function isDbEmpty() {
+  return COLLECTION_NAMES.every((name) => getCollection(db, name).length === 0)
+}
+
+function runBackup() {
+  if (isDbEmpty()) return null
+  return backupDb(db, DATA_DIR)
 }
 
 // ---------- HTTP 基础设施 ----------
@@ -300,6 +313,28 @@ async function handleApi(req, res, pathname) {
     return sendJson(res, 200, { ok: true, count: items.length })
   }
 
+  // 按实体增量变更：多设备并发编辑时只触碰自己提交的 id，互不覆盖
+  const changeMatch = pathname.match(/^\/api\/collections\/([\w]+)\/changes$/)
+  if (changeMatch && req.method === 'POST') {
+    const name = changeMatch[1]
+    if (!COLLECTION_NAMES.includes(name)) {
+      return sendJson(res, 400, { error: `未知集合: ${name}` })
+    }
+    const body = await readBody(req)
+    if (
+      (body.upserts !== undefined && !Array.isArray(body.upserts)) ||
+      (body.deletes !== undefined && !Array.isArray(body.deletes))
+    ) {
+      return sendJson(res, 400, { error: 'upserts/deletes 必须是数组' })
+    }
+    const upserts = (body.upserts ?? []).filter(isValidCollectionItem).slice(0, 5000)
+    const deletes = (body.deletes ?? [])
+      .filter((id) => typeof id === 'string')
+      .slice(0, 5000)
+    applyCollectionChanges(db, name, upserts, deletes)
+    return sendJson(res, 200, { ok: true, upserts: upserts.length, deletes: deletes.length })
+  }
+
   if (pathname === '/api/settings/aiProvider' && req.method === 'PUT') {
     const body = await readBody(req)
     const provider = body === null ? null : mergeProvider(body.provider ?? body, getSetting(db, 'aiProvider'))
@@ -327,9 +362,22 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/import' && req.method === 'POST') {
     const body = await readBody(req)
+    // 导入前先备份当前数据，导错了可以回滚
+    try {
+      runBackup()
+    } catch (e) {
+      console.error('[backup] 导入前备份失败:', e instanceof Error ? e.message : e)
+    }
     applyImport(body)
     console.log('[import] 备份数据已导入')
     return sendJson(res, 200, { ok: true })
+  }
+
+  if (pathname === '/api/backup' && req.method === 'POST') {
+    const file = runBackup()
+    if (!file) return sendJson(res, 200, { ok: true, skipped: '数据库为空，无需备份' })
+    console.log(`[backup] 手动备份: ${path.basename(file)}`)
+    return sendJson(res, 200, { ok: true, file: path.basename(file) })
   }
 
   if (pathname === '/api/ai/chat' && req.method === 'POST') {
@@ -447,6 +495,20 @@ server.listen(PORT, HOST, () => {
   if (!process.env.AUTH_PASSWORD && !fs.existsSync(path.join(DATA_DIR, 'config.json'))) {
     // ensureAuthConfig 已经打印过密码
   }
+  // 启动即做一次备份，之后每 24 小时一次（数据为空时自动跳过）
+  try {
+    const file = runBackup()
+    if (file) console.log(`[backup] 启动备份: ${path.basename(file)}`)
+  } catch (e) {
+    console.error('[backup] 失败:', e instanceof Error ? e.message : e)
+  }
+  setInterval(() => {
+    try {
+      runBackup()
+    } catch (e) {
+      console.error('[backup] 失败:', e instanceof Error ? e.message : e)
+    }
+  }, 24 * 60 * 60 * 1000).unref()
 })
 
 for (const signal of ['SIGINT', 'SIGTERM']) {

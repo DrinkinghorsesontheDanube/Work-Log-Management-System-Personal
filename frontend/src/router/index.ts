@@ -61,7 +61,8 @@ const router = createRouter({
 
 // 全局初始化：进任何路由前先从服务器拉取数据。
 // 数据来源优先级：本浏览器 localStorage 的旧版数据（无缝升级）> 服务器已有数据 > 演示数据。
-// 即使服务器已被其他设备先播种了演示数据，只要本机有旧数据且从未迁移过，仍会用真实数据覆盖。
+// 迁移是按 id 合并：即使服务器已被其他设备先播种演示数据甚至录入了新内容，
+// 旧数据迁移也只会新增/覆盖同 id 条目，不会删掉服务器上已有的其他数据。
 const MIGRATED_FLAG = 'worklog_migrated_v2'
 
 router.beforeEach(async () => {
@@ -75,7 +76,7 @@ router.beforeEach(async () => {
   const alreadyMigrated = localStorage.getItem(MIGRATED_FLAG) === '1'
   if (needsSeed.value) {
     if (legacy) {
-      storage.importAllData(legacy)
+      storage.mergeLegacyData(legacy)
       localStorage.setItem(MIGRATED_FLAG, '1')
       await flush()
       await markSeeded('legacy')
@@ -85,8 +86,8 @@ router.beforeEach(async () => {
       await markSeeded('demo')
     }
   } else if (legacy && !alreadyMigrated && seededWith.value === 'demo') {
-    // 服务器只有演示数据，本机有真实旧数据：覆盖迁移
-    storage.importAllData(legacy)
+    // 服务器只有演示数据，本机有真实旧数据：合并迁移
+    storage.mergeLegacyData(legacy)
     localStorage.setItem(MIGRATED_FLAG, '1')
     await flush()
     await markSeeded('legacy')

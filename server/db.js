@@ -39,6 +39,38 @@ export function getCollection(db, name) {
     .map((row) => JSON.parse(row.data))
 }
 
+/**
+ * 按实体应用增量变更（upsert + delete）。
+ * 只触碰客户端明确提交的 id，其他设备新增/修改的行不受影响——这是多设备
+ * 并发编辑不互相覆盖的关键。
+ */
+export function applyCollectionChanges(db, name, upserts, deletes) {
+  const updateStmt = db.prepare('UPDATE collections SET data = ? WHERE name = ? AND id = ?')
+  const insertStmt = db.prepare('INSERT INTO collections (name, id, seq, data) VALUES (?, ?, ?, ?)')
+  const deleteStmt = db.prepare('DELETE FROM collections WHERE name = ? AND id = ?')
+  const maxSeq = () =>
+    db.prepare('SELECT COALESCE(MAX(seq), -1) AS m FROM collections WHERE name = ?').get(name).m
+  db.exec('BEGIN')
+  try {
+    let nextSeq = maxSeq() + 1
+    for (const item of upserts) {
+      const id = String(item.id)
+      const data = JSON.stringify(item)
+      const result = updateStmt.run(data, name, id)
+      if (result.changes === 0) {
+        insertStmt.run(name, id, nextSeq++, data)
+      }
+    }
+    for (const id of deletes) {
+      deleteStmt.run(name, id)
+    }
+    db.exec('COMMIT')
+  } catch (e) {
+    db.exec('ROLLBACK')
+    throw e
+  }
+}
+
 export function saveCollection(db, name, items) {
   const insert = db.prepare(
     'INSERT OR REPLACE INTO collections (name, id, seq, data) VALUES (?, ?, ?, ?)',
@@ -91,4 +123,25 @@ export function getSession(db, token) {
 
 export function deleteSession(db, token) {
   db.prepare('DELETE FROM sessions WHERE token = ?').run(token)
+}
+
+/**
+ * 一致性备份：VACUUM INTO 生成快照（WAL 模式下也能拿到完整一致状态），
+ * 保留最近 keep 份，删除更旧的。
+ */
+export function backupDb(db, dataDir, keep = 14) {
+  const dir = path.join(dataDir, 'backups')
+  fs.mkdirSync(dir, { recursive: true })
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const target = path.join(dir, `worklog-${stamp}.sqlite`)
+  db.exec(`VACUUM INTO '${target.replace(/'/g, "''")}'`)
+  const files = fs
+    .readdirSync(dir)
+    .filter((f) => f.startsWith('worklog-') && f.endsWith('.sqlite'))
+    .map((f) => ({ file: f, mtime: fs.statSync(path.join(dir, f)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime)
+  for (const old of files.slice(keep)) {
+    fs.rmSync(path.join(dir, old.file), { force: true })
+  }
+  return target
 }
