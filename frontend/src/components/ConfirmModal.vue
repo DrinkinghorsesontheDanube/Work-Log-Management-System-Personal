@@ -25,7 +25,7 @@ const emit = defineEmits<{
       <div class="cm-msg">{{ message }}</div>
       <div class="cm-btns">
         <button class="cm-btn cm-btn-cancel" @click="emit('cancel')">{{ cancelText || '取消' }}</button>
-        <button class="cm-btn cm-btn-ok" :class="{ danger }" @click="emit('confirm')">{{ confirmText || '删除' }}</button>
+        <button class="cm-btn cm-btn-ok" :class="{ danger }" @click="emit('confirm')">{{ confirmText || '确定' }}</button>
       </div>
     </div>
   </div>

@@ -27,12 +27,14 @@ const confirmVisible = ref(false)
 const confirmTitle = ref('')
 const confirmMessage = ref('')
 const confirmDanger = ref(false)
+const confirmText = ref('确定')
 let confirmResolve: ((v: boolean) => void) | null = null
 
-function showConfirm(title: string, message: string, danger = false): Promise<boolean> {
+function showConfirm(title: string, message: string, danger = false, okText = '确定'): Promise<boolean> {
   confirmTitle.value = title
   confirmMessage.value = message
   confirmDanger.value = danger
+  confirmText.value = okText
   confirmVisible.value = true
   return new Promise(resolve => { confirmResolve = resolve })
 }
@@ -123,7 +125,7 @@ function importData(event: Event) {
 
 async function loadDemoData() {
   closeSettingsMenu()
-  const ok = await showConfirm('加载演示数据', '将清除现有数据并加载演示数据，确定继续？')
+  const ok = await showConfirm('加载演示数据', '将清除现有数据并加载演示数据，确定继续？', false, '确认加载')
   if (!ok) return
   seedAllData()
   await flush()
@@ -132,7 +134,7 @@ async function loadDemoData() {
 
 async function clearAllData() {
   closeSettingsMenu()
-  const ok = await showConfirm('清空所有数据', '此操作不可恢复，确定要清空所有数据吗？', true)
+  const ok = await showConfirm('清空所有数据', '此操作不可恢复，确定要清空所有数据吗？', true, '确认清空')
   if (!ok) return
   storage.clearAllData()
   await flush()
@@ -141,7 +143,7 @@ async function clearAllData() {
 
 async function handleLogout() {
   closeSettingsMenu()
-  const ok = await showConfirm('退出登录', '确定要退出当前登录会话吗？')
+  const ok = await showConfirm('退出登录', '确定要退出当前登录会话吗？退出不会删除任何数据。', false, '退出')
   if (!ok) return
   await logout()
   location.reload()
@@ -253,7 +255,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
     <LoginOverlay v-if="authRequired" @authenticated="onAuthenticated" />
     <AiConfigPrompt ref="aiPromptRef" />
     <AiSettingsModal ref="aiSettingsRef" />
-    <ConfirmModal :visible="confirmVisible" :title="confirmTitle" :message="confirmMessage" :danger="confirmDanger" @confirm="onConfirmOk" @cancel="onConfirmCancel" />
+    <ConfirmModal :visible="confirmVisible" :title="confirmTitle" :message="confirmMessage" :confirm-text="confirmText" :danger="confirmDanger" @confirm="onConfirmOk" @cancel="onConfirmCancel" />
   </n-message-provider>
 </template>
 

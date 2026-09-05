@@ -633,6 +633,7 @@ onMounted(() => {
     :visible="confirmVisible"
     :title="confirmTitle"
     :message="confirmMessage"
+    confirm-text="删除"
     :danger="confirmDanger"
     @confirm="onConfirmOk"
     @cancel="onConfirmCancel"
