@@ -5,7 +5,8 @@ import { NMessageProvider } from 'naive-ui'
 import AiConfigPrompt from './components/AiConfigPrompt.vue'
 import AiSettingsModal from './components/AiSettingsModal.vue'
 import ConfirmModal from './components/ConfirmModal.vue'
-import { storage } from './utils/storage'
+import LoginOverlay from './components/LoginOverlay.vue'
+import { storage, authRequired, serverOnline, flush, logout } from './utils/storage'
 import { seedAllData } from './utils/seedData'
 import {
   HomeOutline,
@@ -106,10 +107,11 @@ function importData(event: Event) {
   const file = target.files?.[0]
   if (!file) return
   const reader = new FileReader()
-  reader.onload = () => {
+  reader.onload = async () => {
     try {
       const data = JSON.parse(reader.result as string)
       storage.importAllData(data)
+      await flush()
       location.reload()
     } catch {
       alert('导入失败，请检查文件格式')
@@ -124,6 +126,7 @@ async function loadDemoData() {
   const ok = await showConfirm('加载演示数据', '将清除现有数据并加载演示数据，确定继续？')
   if (!ok) return
   seedAllData()
+  await flush()
   location.reload()
 }
 
@@ -132,6 +135,20 @@ async function clearAllData() {
   const ok = await showConfirm('清空所有数据', '此操作不可恢复，确定要清空所有数据吗？', true)
   if (!ok) return
   storage.clearAllData()
+  await flush()
+  location.reload()
+}
+
+async function handleLogout() {
+  closeSettingsMenu()
+  const ok = await showConfirm('退出登录', '确定要退出当前登录会话吗？')
+  if (!ok) return
+  await logout()
+  location.reload()
+}
+
+// 登录成功后整页刷新：路由守卫会重新执行 ensureInit 完成数据加载
+function onAuthenticated() {
   location.reload()
 }
 
@@ -207,6 +224,11 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   清空数据
                 </button>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item" @click="handleLogout">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  退出登录
+                </button>
               </div>
             </Transition>
           </div>
@@ -216,6 +238,9 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
       </aside>
 
       <main class="main">
+        <div v-if="!serverOnline && !authRequired" class="offline-banner">
+          ⚠ 无法连接服务器，当前处于离线模式，此期间的更改可能无法保存
+        </div>
         <div class="mobile-header">
           <button class="menu-btn" @click="sidebarOpen = !sidebarOpen">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -225,6 +250,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
         <router-view />
       </main>
     </div>
+    <LoginOverlay v-if="authRequired" @authenticated="onAuthenticated" />
     <AiConfigPrompt ref="aiPromptRef" />
     <AiSettingsModal ref="aiSettingsRef" />
     <ConfirmModal :visible="confirmVisible" :title="confirmTitle" :message="confirmMessage" :danger="confirmDanger" @confirm="onConfirmOk" @cancel="onConfirmCancel" />
@@ -422,6 +448,16 @@ export default {
 .footer-text {
   font-size: 11px;
   color: var(--text-4);
+}
+
+.offline-banner {
+  padding: 8px 14px;
+  margin-bottom: 16px;
+  border-radius: var(--r, 8px);
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 12.5px;
 }
 
 .main {

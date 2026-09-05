@@ -54,7 +54,8 @@ function makePlanTask(partial: {
 export function seedAllData() {
   const savedAiProvider = storage.getAiProvider()
   storage.clearAllData()
-  if (savedAiProvider) storage.saveAiProvider(savedAiProvider)
+  // 保护已保存的 AI 配置；apiKey 传空串，服务端会沿用已存的 Key
+  if (savedAiProvider) storage.saveAiProvider({ ...savedAiProvider, apiKey: '' })
 
   const clients: Client[] = [
     {

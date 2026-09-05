@@ -28,10 +28,12 @@ const providerDescs: Record<string, string> = {
 }
 
 const aiStatus = ref<{ configured: boolean; name: string }>({ configured: false, name: '' })
+// 服务端已保存过 Key 时，输入框留空表示继续沿用，不回显明文
+const savedKeyExists = ref(false)
 
 function refreshAiStatus() {
   const savedConfig = storage.getAiProvider()
-  if (savedConfig && savedConfig.apiKey) {
+  if (savedConfig && savedConfig.hasKey) {
     const name = providerTemplates.find(p => p.id === savedConfig.id)?.name || savedConfig.id
     aiStatus.value = { configured: true, name }
   } else {
@@ -55,11 +57,14 @@ function loadAiConfig() {
   const saved = storage.getAiProvider()
   if (saved) {
     selectedProviderId.value = saved.id
-    apiKey.value = saved.apiKey
+    savedKeyExists.value = saved.hasKey
+    // Key 不回显，只提示已保存
+    apiKey.value = ''
     baseUrl.value = saved.baseUrl
     model.value = saved.model
   } else {
     selectedProviderId.value = 'deepseek'
+    savedKeyExists.value = false
     apiKey.value = ''
     const tpl = providerTemplates.find(p => p.id === 'deepseek')
     if (tpl) {
@@ -78,7 +83,7 @@ function onProviderChange() {
 }
 
 function saveAiConfig() {
-  if (!apiKey.value.trim()) {
+  if (!apiKey.value.trim() && !savedKeyExists.value) {
     testResult.value = { success: false, message: '请输入 API Key' }
     return
   }
@@ -87,10 +92,12 @@ function saveAiConfig() {
     name: providerTemplates.find(p => p.id === selectedProviderId.value)?.name || selectedProviderId.value,
     baseUrl: baseUrl.value,
     model: model.value,
-    apiKey: apiKey.value,
+    apiKey: apiKey.value.trim(),
     enabled: true
   }
   storage.saveAiProvider(provider)
+  savedKeyExists.value = savedKeyExists.value || !!apiKey.value.trim()
+  apiKey.value = ''
   refreshAiStatus()
   saved.value = true
   testResult.value = null
@@ -101,6 +108,7 @@ function saveAiConfig() {
 function clearAiConfig() {
   storage.saveAiProvider(null)
   apiKey.value = ''
+  savedKeyExists.value = false
   baseUrl.value = ''
   model.value = ''
   selectedProviderId.value = 'deepseek'
@@ -113,7 +121,7 @@ function clearAiConfig() {
 }
 
 async function doTestConnection() {
-  if (!apiKey.value.trim()) {
+  if (!apiKey.value.trim() && !savedKeyExists.value) {
     testResult.value = { success: false, message: '请先输入 API Key' }
     return
   }
@@ -124,7 +132,8 @@ async function doTestConnection() {
     name: providerTemplates.find(p => p.id === selectedProviderId.value)?.name || selectedProviderId.value,
     baseUrl: baseUrl.value,
     model: model.value,
-    apiKey: apiKey.value,
+    // 留空时服务端会自动使用已保存的 Key 测试
+    apiKey: apiKey.value.trim(),
     enabled: true
   }
   testResult.value = await testConnection(provider)
@@ -186,7 +195,7 @@ defineExpose({ show })
                 <input
                   v-model="apiKey"
                   :type="showApiKey ? 'text' : 'password'"
-                  placeholder="输入 API Key"
+                  :placeholder="savedKeyExists ? '已保存，留空则继续使用原 Key' : '输入 API Key'"
                   class="input"
                 />
                 <button class="ais-toggle-key" @click="showApiKey = !showApiKey" :title="showApiKey ? '隐藏' : '显示'">

@@ -51,11 +51,13 @@ const providerDescs: Record<string, string> = {
 }
 
 // localStorage 不是响应式来源，改用显式刷新的状态：保存/清除/外部弹窗修改配置后都调 refreshAiStatus
+// 注意：getAiProvider() 返回的是脱敏配置（无 apiKey，带 hasKey 标记），Key 只存在服务端
 const aiStatus = ref<{ configured: boolean; name: string }>({ configured: false, name: '' })
+const savedKeyExists = ref(false)
 
 function refreshAiStatus() {
   const saved = storage.getAiProvider()
-  if (saved && saved.apiKey) {
+  if (saved && saved.hasKey) {
     const name = providerTemplates.find(p => p.id === saved.id)?.name || saved.id
     aiStatus.value = { configured: true, name }
   } else {
@@ -74,9 +76,13 @@ function loadAiConfig() {
   const saved = storage.getAiProvider()
   if (saved) {
     selectedProviderId.value = saved.id
-    apiKey.value = saved.apiKey
+    savedKeyExists.value = saved.hasKey
+    // Key 不回显，只提示已保存
+    apiKey.value = ''
     baseUrl.value = saved.baseUrl
     model.value = saved.model
+  } else {
+    savedKeyExists.value = false
   }
 }
 
@@ -89,7 +95,7 @@ function onProviderChange() {
 }
 
 function saveAiConfig() {
-  if (!apiKey.value.trim()) {
+  if (!apiKey.value.trim() && !savedKeyExists.value) {
     message.warning('请输入 API Key')
     return
   }
@@ -98,10 +104,13 @@ function saveAiConfig() {
     name: providerTemplates.find(p => p.id === selectedProviderId.value)?.name || selectedProviderId.value,
     baseUrl: baseUrl.value,
     model: model.value,
-    apiKey: apiKey.value,
+    // 留空时服务端自动沿用已保存的 Key
+    apiKey: apiKey.value.trim(),
     enabled: true
   }
   storage.saveAiProvider(provider)
+  savedKeyExists.value = savedKeyExists.value || !!apiKey.value.trim()
+  apiKey.value = ''
   refreshAiStatus()
   message.success('AI 配置已保存')
 }
@@ -109,13 +118,14 @@ function saveAiConfig() {
 function clearAiConfig() {
   storage.saveAiProvider(null)
   apiKey.value = ''
+  savedKeyExists.value = false
   testResult.value = null
   refreshAiStatus()
   message.success('AI 配置已清除')
 }
 
 async function doTestConnection() {
-  if (!apiKey.value.trim()) {
+  if (!apiKey.value.trim() && !savedKeyExists.value) {
     message.warning('请先输入 API Key')
     return
   }
@@ -126,7 +136,8 @@ async function doTestConnection() {
     name: providerTemplates.find(p => p.id === selectedProviderId.value)?.name || selectedProviderId.value,
     baseUrl: baseUrl.value,
     model: model.value,
-    apiKey: apiKey.value,
+    // 留空时服务端会自动使用已保存的 Key 测试
+    apiKey: apiKey.value.trim(),
     enabled: true
   }
   testResult.value = await testConnection(provider)
@@ -334,7 +345,7 @@ onBeforeUnmount(() => {
                   <input
                     v-model="apiKey"
                     :type="showApiKey ? 'text' : 'password'"
-                    placeholder="输入 API Key"
+                    :placeholder="savedKeyExists ? '已保存，留空则继续使用原 Key' : '输入 API Key'"
                     class="input"
                   />
                   <button class="btn-icon toggle-key-btn" @click="showApiKey = !showApiKey" :title="showApiKey ? '隐藏' : '显示'">

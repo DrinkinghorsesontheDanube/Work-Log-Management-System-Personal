@@ -1,0 +1,12 @@
+services:
+  worklog:
+    build: .
+    container_name: worklog
+    ports:
+      - "4173:4173"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    # 首次启动前可指定访问密码（不设置则自动生成并打印在容器日志里）：
+    # environment:
+    #   AUTH_PASSWORD: "你的访问密码"

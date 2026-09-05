@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, inject, nextTick } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '../stores/projects'
 import { useTodosStore } from '../stores/todos'
 import { useWorkLogsStore } from '../stores/workLogs'
 import { useClientsStore } from '../stores/clients'
-import { storage } from '../utils/storage'
+import { usePlanTasksStore } from '../stores/planTasks'
 import { chatWithAI, isAiConfigured } from '../services/aiService'
 import { addWorkingDays, calcWorkingDays } from '../utils/workdays'
 import { todayStr } from '../utils/date'
@@ -19,6 +20,8 @@ const showAiConfigPrompt = inject<() => void>('showAiConfigPrompt', () => {})
 const todosStore = useTodosStore()
 const workLogsStore = useWorkLogsStore()
 const clientsStore = useClientsStore()
+const planTasksStore = usePlanTasksStore()
+const { planTasks } = storeToRefs(planTasksStore)
 
 const project = ref<Project | null>(null)
 const showPhaseModal = ref(false)
@@ -74,7 +77,6 @@ const projectLogs = computed(() =>
   project.value ? workLogsStore.getWorkLogsByProjectId(project.value.id) : []
 )
 
-const planTasks = ref<PlanTask[]>([])
 const showPlanModal = ref(false)
 const editingPlan = ref<PlanTask | null>(null)
 const planName = ref('')
@@ -215,7 +217,7 @@ function syncProgressFromTodos(taskId: string) {
     if (progress === 100) status = 'completed'
     else if (progress > 0) status = 'in_progress'
     planTasks.value[idx] = { ...planTasks.value[idx], progress, status, updatedAt: new Date().toISOString() }
-    storage.savePlanTasks(planTasks.value)
+    planTasksStore.savePlanTasks()
     syncProjectProgress()
   }
 }
@@ -256,7 +258,7 @@ const deadlineWarnings = computed(() => {
 })
 
 function loadPlanTasks() {
-  planTasks.value = storage.getPlanTasks()
+  planTasksStore.loadPlanTasks()
   if (project.value) {
     const hasPhaseTasks = planTasks.value.some(
       t => t.projectId === project.value!.id && t.id.startsWith('phase_')
@@ -282,7 +284,7 @@ function loadPlanTasks() {
         updatedAt: now.toISOString()
       }))
       planTasks.value = [...planTasks.value, ...phaseTasks]
-      storage.savePlanTasks(planTasks.value)
+      planTasksStore.savePlanTasks()
     }
   }
   recalcAllParentTasks()
@@ -293,7 +295,7 @@ function recalcAllParentTasks() {
   for (const pid of parentIds) {
     recalcParentProgress(pid)
   }
-  storage.savePlanTasks(planTasks.value)
+  planTasksStore.savePlanTasks()
 }
 
 function openAddPlan(parentId: string | null = null) {
@@ -389,7 +391,7 @@ function savePlan() {
   const newParentId = planParentId.value
   recalcParentProgress(newParentId)
   if (oldParentId && oldParentId !== newParentId) recalcParentProgress(oldParentId)
-  storage.savePlanTasks(planTasks.value)
+  planTasksStore.savePlanTasks()
   syncProjectProgress()
   showPlanModal.value = false
 }
@@ -480,10 +482,10 @@ function onConfirmOk() {
   planTasks.value = planTasks.value.filter(t => !removedIds.includes(t.id))
   // 解除待办上的悬挂引用
   todosStore.clearPlanTaskRefs(removedIds)
-  storage.savePlanTasks(planTasks.value)
+  planTasksStore.savePlanTasks()
   // 重算被删任务的原父任务，并同步项目进度
   recalcParentProgress(rootTask.parentId)
-  storage.savePlanTasks(planTasks.value)
+  planTasksStore.savePlanTasks()
   syncProjectProgress()
   pendingDeleteId.value = null
 }
@@ -544,7 +546,7 @@ async function aiGeneratePlan() {
 
 function confirmAiPlan() {
   planTasks.value = [...planTasks.value, ...aiPreviewTasks.value]
-  storage.savePlanTasks(planTasks.value)
+  planTasksStore.savePlanTasks()
   showAiPreview.value = false
   aiPreviewTasks.value = []
 }
@@ -594,7 +596,7 @@ function importCSV(e: Event) {
       if (!parentName) parentMap[name] = id
     }
     planTasks.value = [...planTasks.value, ...newTasks]
-    storage.savePlanTasks(planTasks.value)
+    planTasksStore.savePlanTasks()
     alert(`成功导入 ${newTasks.length} 条任务`)
   }
   reader.readAsText(file)
