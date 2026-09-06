@@ -2,7 +2,8 @@
 FROM node:24-alpine AS build
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./frontend/
-RUN cd frontend && npm ci
+# 国内环境默认走 npmmirror 加速（如需官方源改为 https://registry.npmjs.org）
+RUN cd frontend && npm config set registry https://registry.npmmirror.com && npm ci
 COPY frontend ./frontend
 RUN cd frontend && npm run build
 

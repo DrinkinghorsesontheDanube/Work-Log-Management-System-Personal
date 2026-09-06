@@ -125,6 +125,34 @@ worklog.example.com {
 
 ---
 
+## 路线 C：飞牛 NAS（fnOS）
+
+飞牛 fnOS 底层是 Debian，应用中心装上 Docker 后，操作与标准 Linux 一致。
+
+1. **安装 Docker**：fnOS 桌面 → 应用中心 → 搜索「Docker」→ 安装
+2. **开启 SSH**：设置 → 系统服务（或终端相关选项）→ 打开 SSH（端口 22）；同时记下 NAS 的局域网 IP（如 `192.168.1.10`）
+3. **上传代码**（两种任选其一）：
+   - **推荐（便于以后更新）**：fnOS 开 SSH 后 `sudo apt update && sudo apt install -y git`，然后 `git clone https://github.com/<你的用户名>/Work-Log-Management-System-Personal.git`
+   - 或者：GitHub 仓库页 → Code → Download ZIP，飞牛文件管理上传到共享目录后解压（以后更新需重新下载）
+4. **SSH 登录并构建启动**：Windows 上 PowerShell 执行 `ssh 你的用户名@NAS的IP`（密码 = fnOS 登录密码），然后：
+
+   ```bash
+   sudo -i                                                    # 切到 root
+   cd /路径/Work-Log-Management-System-Personal               # 进入项目目录
+   docker compose up -d --build                               # 首次构建约几分钟（走国内 npm 源）
+   docker logs worklog | grep PASSWORD                        # 查看访问密码（迁移数据则跳过）
+   ```
+
+   > 若提示 `docker: command not found`：确认 Docker 应用已安装完成后重新登录 SSH。
+
+5. **访问**：局域网内浏览器打开 `http://NAS的IP:4173`
+6. **迁移数据**：先停掉 Windows 本机服务（否则两边数据会分叉），把本机 `data/` 目录内容通过飞牛文件管理/SMB 上传到 NAS 项目的 `data/` 目录（覆盖空目录），然后 `docker compose restart` —— 数据库、AI 配置、登录会话全部平移
+7. **外网访问**：fnOS 应用中心若有 Tailscale 直接安装并登录；没有则 SSH 执行 `curl -fsSL https://tailscale.com/install.sh | sh && tailscale up`，手机/电脑装 Tailscale 登录同一账号后，用 NAS 的 Tailscale IP（100.x.x.x）访问
+
+以后更新同样执行 `bash scripts/update.sh`（需第 3 步用了 git clone 方式）。
+
+---
+
 ## 五、数据迁移
 
 数据全部在 `data/` 目录，迁移 = 拷贝目录。
