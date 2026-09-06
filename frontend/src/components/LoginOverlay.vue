@@ -64,6 +64,13 @@ async function submit() {
         <span v-if="loading" class="login-spinner"></span>
         {{ loading ? '验证中' : '进入系统' }}
       </button>
+
+      <div class="login-foot">
+        <span>日志记录</span><i></i>
+        <span>项目与商机</span><i></i>
+        <span>客户跟进</span><i></i>
+        <span>AI 周报</span>
+      </div>
     </form>
   </div>
 </template>
@@ -199,6 +206,25 @@ async function submit() {
 }
 .login-btn:active:not(:disabled) { transform: translateY(0); }
 .login-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.login-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light, #f1f5f9);
+  font-size: 11px;
+  color: var(--text-muted, #94a3b8);
+  letter-spacing: 0.02em;
+}
+.login-foot i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-placeholder, #cbd5e1);
+}
 
 .login-spinner {
   display: inline-block;
