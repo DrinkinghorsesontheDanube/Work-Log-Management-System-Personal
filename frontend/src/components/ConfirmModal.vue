@@ -56,11 +56,11 @@ const emit = defineEmits<{
 }
 .cm-icon.danger { background: #fef2f2; color: #ef4444; }
 .cm-title { font-size: 17px; font-weight: 600; color: #0f172a; margin-bottom: 6px; }
-.cm-msg { font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 24px; }
+.cm-msg { font-size: 14px; color: #64748b; line-height: 1.6; margin-bottom: 24px; }
 .cm-btns { display: flex; gap: 10px; }
 .cm-btn {
   flex: 1; padding: 10px 0; border-radius: 10px;
-  font-size: 14px; font-weight: 500; cursor: pointer;
+  font-size: 15px; font-weight: 500; cursor: pointer;
   transition: all 0.15s; border: none;
 }
 .cm-btn-cancel {

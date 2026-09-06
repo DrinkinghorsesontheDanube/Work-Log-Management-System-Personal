@@ -694,12 +694,12 @@ onMounted(() => {
   color: var(--text);
 }
 .stat-unit {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-muted);
 }
 .stat-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   margin-top: 4px;
 }
@@ -750,7 +750,7 @@ onMounted(() => {
   flex: 1;
   border: none;
   outline: none;
-  font-size: 14px;
+  font-size: 15px;
   font-family: var(--font);
   color: var(--text);
   background: transparent;
@@ -769,7 +769,7 @@ onMounted(() => {
   padding: 6px 28px 6px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 13px;
   font-family: var(--font);
   color: var(--text);
   background: var(--bg);
@@ -828,7 +828,7 @@ onMounted(() => {
 .search-input {
   width: 100%;
   padding: 7px 12px 7px 32px;
-  font-size: 13px;
+  font-size: 14px;
 }
 .pill-group {
   display: flex;
@@ -841,7 +841,7 @@ onMounted(() => {
   padding: 5px 14px;
   border: 1px solid var(--border);
   background: var(--bg-card);
-  font-size: 13px;
+  font-size: 14px;
   font-family: var(--font);
   color: var(--text-muted);
   cursor: pointer;
@@ -928,13 +928,13 @@ onMounted(() => {
   flex-shrink: 0;
 }
 .col-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text);
   flex: 1;
 }
 .col-count {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-secondary);
   background: var(--bg);
@@ -964,7 +964,7 @@ onMounted(() => {
   font-size: 22px;
 }
 .col-empty-text {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
@@ -1042,7 +1042,7 @@ onMounted(() => {
 }
 .card-title {
   flex: 1;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text);
   overflow: hidden;
@@ -1055,7 +1055,7 @@ onMounted(() => {
   color: var(--text-muted);
 }
 .card-desc {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.55;
   margin-bottom: 10px;
@@ -1091,7 +1091,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   padding: 1px 8px;
   border-radius: var(--radius-full);
@@ -1130,7 +1130,7 @@ onMounted(() => {
   border-bottom: 1px solid var(--border-light);
 }
 .list-group-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
   flex: 1;
@@ -1167,7 +1167,7 @@ onMounted(() => {
   gap: 2px;
 }
 .list-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text);
   overflow: hidden;
@@ -1175,7 +1175,7 @@ onMounted(() => {
   white-space: nowrap;
 }
 .list-desc {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1214,7 +1214,7 @@ onMounted(() => {
   animation: slideUp 0.2s ease;
 }
 .batch-info {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text);
   margin-right: 4px;
@@ -1250,7 +1250,7 @@ onMounted(() => {
   border-radius: var(--radius-sm);
   background: var(--bg-card);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   font-family: var(--font);
   cursor: pointer;
@@ -1285,13 +1285,13 @@ onMounted(() => {
   margin-bottom: 14px;
 }
 .empty-text {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text);
   margin-bottom: 4px;
 }
 .empty-hint {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
 }
 
@@ -1325,7 +1325,7 @@ onMounted(() => {
   border-bottom: 1px solid var(--border-light);
 }
 .modal-header h3 {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
 }
 .modal-body {
@@ -1343,7 +1343,7 @@ onMounted(() => {
 }
 .form-field label {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 5px;
@@ -1374,7 +1374,7 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.15s;
   font-family: var(--font);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
 }
 .pri-card:hover {
@@ -1405,7 +1405,7 @@ onMounted(() => {
   cursor: pointer;
   transition: all 0.15s;
   font-family: var(--font);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text);
 }
 .cat-card:hover {
@@ -1432,7 +1432,7 @@ onMounted(() => {
   padding: 7px 12px;
   border: none;
   background: var(--bg-card);
-  font-size: 13px;
+  font-size: 14px;
   font-family: var(--font);
   font-weight: 500;
   color: var(--text-muted);

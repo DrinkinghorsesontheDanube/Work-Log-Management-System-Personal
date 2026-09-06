@@ -927,7 +927,7 @@ onMounted(() => {
   border-radius: 8px;
   background: var(--bg-card, #fff);
   color: var(--text-secondary, #475569);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
@@ -952,7 +952,7 @@ onMounted(() => {
 }
 
 .imp-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 4px;
@@ -967,7 +967,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   padding: 3px 10px;
   border-radius: var(--radius-full);
@@ -997,7 +997,7 @@ onMounted(() => {
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   font-family: var(--font);
   cursor: pointer;
@@ -1052,12 +1052,12 @@ onMounted(() => {
   border-left: none;
 }
 .info-label {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
   font-weight: 500;
 }
 .info-value {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   word-break: break-all;
 }
@@ -1076,12 +1076,12 @@ onMounted(() => {
   margin-bottom: 4px;
 }
 .cs-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text);
 }
 .title-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   padding: 1px 8px;
   border-radius: var(--radius-full);
@@ -1089,7 +1089,7 @@ onMounted(() => {
   color: #3b82f6;
 }
 .role-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   padding: 1px 8px;
   border-radius: var(--radius-full);
@@ -1104,7 +1104,7 @@ onMounted(() => {
   color: #16a34a;
 }
 .primary-tag {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 1px 6px;
   border-radius: 4px;
@@ -1115,12 +1115,12 @@ onMounted(() => {
 .cs-sub {
   display: flex;
   gap: 16px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   margin-bottom: 4px;
 }
 .cs-link {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--primary);
   cursor: pointer;
   text-decoration: none;
@@ -1167,7 +1167,7 @@ onMounted(() => {
 .qs-green { background: #f0fdf4; color: #22c55e; }
 .qs-amber { background: #fffbeb; color: #f59e0b; }
 .qs-val { font-size: 18px; font-weight: 700; color: var(--text); line-height: 1; }
-.qs-lbl { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.qs-lbl { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
 
 .recent-visits-card { margin-bottom: 0; }
 
@@ -1183,12 +1183,12 @@ onMounted(() => {
   margin-bottom: 6px;
 }
 .visit-date {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
 .visit-contact {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 .visit-preview-body {
@@ -1199,7 +1199,7 @@ onMounted(() => {
 .visit-field-row {
   display: flex;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 13.5px;
 }
 .vf-label {
   color: var(--text-muted);
@@ -1247,7 +1247,7 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 .contact-card-name {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text);
 }
@@ -1266,7 +1266,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--text-secondary);
 }
 .contact-field svg {
@@ -1274,7 +1274,7 @@ onMounted(() => {
   flex-shrink: 0;
 }
 .contact-notes {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   font-style: italic;
 }
@@ -1304,7 +1304,7 @@ onMounted(() => {
   gap: 12px;
 }
 .visit-date-badge {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--primary);
   background: var(--primary-50);
@@ -1312,7 +1312,7 @@ onMounted(() => {
   border-radius: var(--radius-sm);
 }
 .visit-contact-text {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 .visit-card-body {
@@ -1327,14 +1327,14 @@ onMounted(() => {
   gap: 3px;
 }
 .vs-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 .vs-value {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.6;
   white-space: pre-wrap;
@@ -1371,12 +1371,12 @@ onMounted(() => {
   gap: 8px;
 }
 .project-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text);
 }
 .project-manager {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 .project-item-body {
@@ -1389,7 +1389,7 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 .project-pct {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--primary);
   min-width: 36px;
@@ -1404,7 +1404,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 .pm-item svg { color: var(--text-muted); flex-shrink: 0; }
@@ -1423,12 +1423,12 @@ onMounted(() => {
   border-bottom: 1px solid var(--border-light);
 }
 .log-date {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
 .log-cat-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   padding: 2px 8px;
   border-radius: var(--radius-full);
@@ -1437,7 +1437,7 @@ onMounted(() => {
   padding: 10px 18px;
 }
 .log-content {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.6;
   white-space: pre-wrap;
@@ -1454,7 +1454,7 @@ onMounted(() => {
 }
 .form-field label {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 5px;
@@ -1464,7 +1464,7 @@ onMounted(() => {
 }
 .form-hint {
   margin-top: 10px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   padding: 8px 12px;
   background: var(--bg-secondary, #f8fafc);
@@ -1484,7 +1484,7 @@ onMounted(() => {
   user-select: none;
 }
 .checkbox-text {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-secondary);
   line-height: 1;
@@ -1549,7 +1549,7 @@ onMounted(() => {
   margin-bottom: 6px;
 }
 .confirm-desc {
-  font-size: 13px;
+  font-size: 14px;
   color: #64748b;
   line-height: 1.6;
   margin-bottom: 24px;
@@ -1562,7 +1562,7 @@ onMounted(() => {
   flex: 1;
   padding: 10px 0;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
   border: none;
@@ -1615,7 +1615,7 @@ onMounted(() => {
   }
   .tab-btn {
     padding: 10px 12px;
-    font-size: 12px;
+    font-size: 13px;
   }
   .form-row {
     grid-template-columns: 1fr;

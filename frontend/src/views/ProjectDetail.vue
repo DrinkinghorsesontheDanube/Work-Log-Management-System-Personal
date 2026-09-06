@@ -1192,7 +1192,7 @@ onMounted(() => {
               <input v-model.number="planDuration" type="number" min="1" class="input" @change="onDurationChange" />
             </div>
             <div class="form-field">
-              <label>计划结束 <span style="font-size:10px;color:var(--text-muted)">自动计算</span></label>
+              <label>计划结束 <span style="font-size:11px;color:var(--text-muted)">自动计算</span></label>
               <input v-model="planEnd" type="date" class="input" @change="onEndDateChange" />
             </div>
           </div>
@@ -1202,11 +1202,11 @@ onMounted(() => {
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="form-field">
-              <label>实际开始<span v-if="editingHasChildren" style="font-size:10px;color:var(--text-muted);margin-left:4px">· 子任务自动计算</span></label>
+              <label>实际开始<span v-if="editingHasChildren" style="font-size:11px;color:var(--text-muted);margin-left:4px">· 子任务自动计算</span></label>
               <input v-model="planActualStart" type="date" class="input" :disabled="editingHasChildren" />
             </div>
             <div class="form-field">
-              <label>实际结束<span v-if="editingHasChildren" style="font-size:10px;color:var(--text-muted);margin-left:4px">· 子任务自动计算</span></label>
+              <label>实际结束<span v-if="editingHasChildren" style="font-size:11px;color:var(--text-muted);margin-left:4px">· 子任务自动计算</span></label>
               <input v-model="planActualEnd" type="date" class="input" :disabled="editingHasChildren" />
             </div>
           </div>
@@ -1220,7 +1220,7 @@ onMounted(() => {
               </select>
             </div>
             <div class="form-field">
-              <label>进度 ({{ planProgress }}%)<span v-if="editingHasChildren" style="font-size:11px;color:var(--text-muted);margin-left:4px">· 由子任务自动计算</span></label>
+              <label>进度 ({{ planProgress }}%)<span v-if="editingHasChildren" style="font-size:12px;color:var(--text-muted);margin-left:4px">· 由子任务自动计算</span></label>
               <input v-model.number="planProgress" type="range" min="0" max="100" :disabled="editingHasChildren" style="accent-color:var(--primary);width:100%" />
             </div>
           </div>
@@ -1305,7 +1305,7 @@ onMounted(() => {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 14px; border: 1px solid var(--border-light, #e2e8f0);
   border-radius: 8px; background: var(--bg-card, #fff);
-  color: var(--text-secondary, #475569); font-size: 13px; font-weight: 500;
+  color: var(--text-secondary, #475569); font-size: 14px; font-weight: 500;
   cursor: pointer; transition: all 0.15s;
 }
 .back-btn:hover { background: var(--bg, #f1f5f9); color: var(--text, #1e293b); border-color: var(--border, #cbd5e1); }
@@ -1315,7 +1315,7 @@ onMounted(() => {
 .status-chip {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 8px 18px; border-radius: 20px;
-  font-size: 14px; font-weight: 600;
+  font-size: 15px; font-weight: 600;
   flex-shrink: 0; align-self: flex-start;
 }
 .status-dot {
@@ -1335,7 +1335,7 @@ onMounted(() => {
   background: transparent;
   border: 1px solid var(--border-light, #e2e8f0);
   color: var(--text-secondary, #475569);
-  font-size: 12px;
+  font-size: 13px;
   padding: 4px 12px;
   border-radius: 6px;
   cursor: pointer;
@@ -1357,7 +1357,7 @@ onMounted(() => {
   background: var(--bg-card, #fff);
   border: 1px solid var(--border-light, #e2e8f0);
   border-radius: var(--radius, 10px);
-  font-size: 13px;
+  font-size: 14px;
 }
 .info-strip-content {
   display: flex;
@@ -1373,13 +1373,13 @@ onMounted(() => {
   font-weight: 500;
 }
 .info-strip-label {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted, #94a3b8);
   font-weight: 400;
 }
 .info-strip-sep {
   color: var(--border-light, #e2e8f0);
-  font-size: 12px;
+  font-size: 13px;
 }
 .info-strip-edit {
   flex-shrink: 0;
@@ -1391,7 +1391,7 @@ onMounted(() => {
   border-radius: var(--radius-full, 20px);
 }
 .cycle-days {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: #0284c7;
   margin-left: 2px;
@@ -1406,7 +1406,7 @@ onMounted(() => {
 .ms-val { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1; }
 .ms-val.ms-green { color: #22c55e; }
 .ms-val.ms-blue { color: #3b82f6; }
-.ms-lbl { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.ms-lbl { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
 .edit-grid {
   display: grid;
@@ -1427,11 +1427,11 @@ onMounted(() => {
   border-radius: 3px; transition: width 0.3s;
 }
 .auto-progress-val {
-  font-size: 16px; font-weight: 700; color: var(--primary, #6366f1);
+  font-size: 17px; font-weight: 700; color: var(--primary, #6366f1);
   min-width: 40px;
 }
 .auto-progress-hint {
-  font-size: 11px; color: var(--text-muted, #94a3b8);
+  font-size: 12px; color: var(--text-muted, #94a3b8);
   white-space: nowrap;
 }
 
@@ -1446,14 +1446,14 @@ onMounted(() => {
   height: 6px;
 }
 .progress-slider-val {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--primary);
   min-width: 36px;
   text-align: right;
 }
 
-.progress-val { font-weight: 700; font-size: 14px; min-width: 36px; position: relative; z-index: 1; }
+.progress-val { font-weight: 700; font-size: 15px; min-width: 36px; position: relative; z-index: 1; }
 .progress-pill {
   position: relative; overflow: hidden;
   padding: 2px 10px; border-radius: var(--radius-full);
@@ -1498,7 +1498,7 @@ onMounted(() => {
   box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.15);
 }
 .node-label {
-  font-size: 10.5px;
+  font-size: 11.5px;
   color: var(--text-muted);
   text-align: center;
   white-space: nowrap;
@@ -1511,12 +1511,12 @@ onMounted(() => {
 .phase-card .card-header { flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
 .phase-header-info { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .info-pill { display: inline-flex; align-items: center; gap: 5px; }
-.info-label { font-size: 11px; color: var(--text-muted); }
-.info-val { font-size: 12px; font-weight: 600; color: var(--text); }
+.info-label { font-size: 12px; color: var(--text-muted); }
+.info-val { font-size: 13px; font-weight: 600; color: var(--text); }
 .inline-progress { display: inline-block; width: 60px; height: 6px; background: var(--border-light); border-radius: 3px; overflow: hidden; vertical-align: middle; }
 .inline-progress .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
 .phase-tag {
-  font-size: 11px; font-weight: 500; padding: 1px 7px;
+  font-size: 12px; font-weight: 500; padding: 1px 7px;
   border-radius: var(--radius-full); display: inline-block;
 }
 .history-row {
@@ -1526,7 +1526,7 @@ onMounted(() => {
 .history-chip {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 8px; border: 1px solid var(--border-light);
-  border-radius: var(--radius-full); font-size: 10.5px; background: var(--bg-card);
+  border-radius: var(--radius-full); font-size: 11.5px; background: var(--bg-card);
 }
 .chip-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
 .chip-name { font-weight: 500; color: var(--text); }
@@ -1534,13 +1534,13 @@ onMounted(() => {
 .chip-note { color: var(--text-secondary); font-style: italic; }
 
 .card-body .list-row { padding: 5px 16px; gap: 8px; }
-.todo-text { flex: 1; font-size: 12.5px; color: var(--text); }
+.todo-text { flex: 1; font-size: 13.5px; color: var(--text); }
 .todo-text.done { text-decoration: line-through; color: var(--text-muted); }
-.todo-date { font-size: 11px; color: var(--text-muted); }
+.todo-date { font-size: 12px; color: var(--text-muted); }
 
 .log-row { flex-direction: column; align-items: flex-start; gap: 1px; }
-.log-date { font-size: 11px; color: var(--text-muted); }
-.log-content { font-size: 12.5px; color: var(--text-secondary); }
+.log-date { font-size: 12px; color: var(--text-muted); }
+.log-content { font-size: 13.5px; color: var(--text-secondary); }
 
 .detail-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch; }
 .bottom-panel { display: flex; flex-direction: column; min-height: 0; height: 100%; }
@@ -1554,14 +1554,14 @@ onMounted(() => {
 .plan-item {
   display: flex; flex-direction: column; gap: 4px; padding: 8px 10px;
   border: 1px solid var(--border-light); border-radius: var(--radius);
-  cursor: pointer; transition: all 0.15s; font-size: 13px;
+  cursor: pointer; transition: all 0.15s; font-size: 14px;
 }
 .plan-item.is-child { padding-left: 26px; background: var(--bg); border-style: dashed; }
 .plan-item:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); background: var(--bg-hover, #fafbff); }
 .plan-row-top { display: flex; align-items: center; gap: 3px; }
 .plan-row-bottom { display: flex; align-items: center; padding-left: 14px; margin-top: 2px; }
 .plan-tag {
-  font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; letter-spacing: 0.3px;
+  font-size: 11px; font-weight: 600; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; letter-spacing: 0.3px;
 }
 .plan-tag.plan { color: var(--text-muted); background: var(--bg); margin-right: 0; }
 .plan-tag.actual { color: #b45309; background: transparent; margin-right: 0; margin-left: 28px; }
@@ -1585,11 +1585,11 @@ onMounted(() => {
 }
 .confirm-icon-wrap.danger { background: #fef2f2; color: #ef4444; }
 .confirm-title { font-size: 17px; font-weight: 600; color: #0f172a; margin-bottom: 6px; }
-.confirm-desc { font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 24px; }
+.confirm-desc { font-size: 14px; color: #64748b; line-height: 1.6; margin-bottom: 24px; }
 .confirm-btns { display: flex; gap: 10px; }
 .confirm-btn {
   flex: 1; padding: 10px 0; border-radius: 10px;
-  font-size: 14px; font-weight: 500; cursor: pointer; border: none;
+  font-size: 15px; font-weight: 500; cursor: pointer; border: none;
 }
 .confirm-btn.cancel { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 .confirm-btn.cancel:hover { background: #e2e8f0; }
@@ -1599,27 +1599,27 @@ onMounted(() => {
 .plan-dot.pending { background: #94a3b8; }
 .plan-dot.in_progress { background: #22c55e; }
 .plan-dot.completed { background: #3b82f6; }
-.plan-name { flex: 1; font-size: 13px; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; margin-left: 0; }
-.plan-date { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+.plan-name { flex: 1; font-size: 14px; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; margin-left: 0; }
+.plan-date { font-size: 13px; color: var(--text-muted); flex-shrink: 0; }
 .plan-date.actual { color: #b45309; font-weight: 500; }
 .plan-progress { display: flex; align-items: center; gap: 3px; width: 64px; flex-shrink: 0; margin-left: 2px; }
-.plan-pct { font-size: 11px; font-weight: 600; color: var(--primary); min-width: 26px; }
-.plan-countdown { font-size: 10px; font-weight: 600; min-width: 48px; text-align: right; flex-shrink: 0; }
+.plan-pct { font-size: 12px; font-weight: 600; color: var(--primary); min-width: 26px; }
+.plan-countdown { font-size: 11px; font-weight: 600; min-width: 48px; text-align: right; flex-shrink: 0; }
 .plan-countdown.normal { color: var(--text-muted); }
 .plan-countdown.warning { color: #d97706; }
 .plan-countdown.urgent { color: #dc2626; }
 .plan-countdown.overdue { color: #dc2626; }
 .plan-todo-badge {
-  font-size: 10px; font-weight: 600; color: var(--primary);
+  font-size: 11px; font-weight: 600; color: var(--primary);
   background: #eef2ff; padding: 1px 7px;
   border-radius: var(--radius-full); flex-shrink: 0; margin-left: 2px;
 }
 .deadline-banner {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   padding: 8px 14px; background: #fef3c7; border-top: 1px solid #fde68a;
-  font-size: 12px;
+  font-size: 13px;
 }
-.deadline-icon { font-size: 14px; flex-shrink: 0; }
+.deadline-icon { font-size: 15px; flex-shrink: 0; }
 .deadline-tag { color: #92400e; }
 .deadline-tag.urgent { color: #dc2626; font-weight: 600; }
 .deadline-tag.overdue { color: #dc2626; font-weight: 700; }
@@ -1629,52 +1629,52 @@ onMounted(() => {
 .form-field:last-child { margin-bottom: 0; }
 .form-field label {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 5px;
 }
 .field-hint {
-  display: block; font-size: 11px; color: var(--text-muted, #94a3b8);
+  display: block; font-size: 12px; color: var(--text-muted, #94a3b8);
   margin-top: 4px; line-height: 1.4;
 }
 
 .ai-preview-body { max-height: 400px; overflow-y: auto; }
-.ai-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+.ai-hint { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
 .ai-task-list { display: flex; flex-direction: column; gap: 4px; }
 .ai-task-item {
   display: flex; align-items: center; gap: 8px; padding: 6px 10px;
-  border: 1px solid var(--border-light); border-radius: var(--radius-sm); font-size: 13px;
+  border: 1px solid var(--border-light); border-radius: var(--radius-sm); font-size: 14px;
 }
 .ai-task-item.is-child { padding-left: 24px; background: var(--bg); border-style: dashed; }
 .ai-task-name { flex: 1; color: var(--text); }
-.ai-task-date { font-size: 11px; color: var(--text-muted); }
+.ai-task-date { font-size: 12px; color: var(--text-muted); }
 
 .linked-todos-section {
   margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-light);
 }
 .linked-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-.linked-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.linked-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
 .linked-list { max-height: 150px; overflow-y: auto; margin-bottom: 8px; }
 .linked-item {
   display: flex; align-items: center; gap: 6px; padding: 4px 6px;
-  border-radius: var(--radius-sm); font-size: 12px;
+  border-radius: var(--radius-sm); font-size: 13px;
 }
 .linked-item:hover { background: var(--bg-hover); }
 .linked-name { flex: 1; color: var(--text); }
 .linked-name.done { text-decoration: line-through; color: var(--text-muted); }
-.linked-empty { font-size: 12px; color: var(--text-muted); padding: 6px 0; }
+.linked-empty { font-size: 13px; color: var(--text-muted); padding: 6px 0; }
 .linked-add { display: flex; gap: 6px; }
-.linked-add .input { flex: 1; font-size: 12px; padding: 5px 8px; }
+.linked-add .input { flex: 1; font-size: 13px; padding: 5px 8px; }
 .holiday-toggle { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
 .holiday-toggle input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); margin: 0; cursor: pointer; }
-.holiday-toggle label { font-size: 13px; color: var(--text-secondary); cursor: pointer; margin: 0; }
+.holiday-toggle label { font-size: 14px; color: var(--text-secondary); cursor: pointer; margin: 0; }
 .todo-task-tag {
-  font-size: 10px; color: var(--primary); background: #eef2ff;
+  font-size: 11px; color: var(--primary); background: #eef2ff;
   padding: 1px 6px; border-radius: var(--radius-full); flex-shrink: 0;
 }
 .phase-config-btn {
-  font-size: 14px; vertical-align: middle; cursor: pointer;
+  font-size: 15px; vertical-align: middle; cursor: pointer;
   opacity: 0.6; transition: opacity 0.15s;
 }
 .phase-config-btn:hover { opacity: 1; }
@@ -1689,12 +1689,12 @@ onMounted(() => {
   transition: all 0.15s; cursor: grab;
 }
 .phase-config-item.drag-over { border-color: var(--primary); background: #eef2ff; }
-.phase-config-drag { color: var(--text-muted); font-size: 14px; cursor: grab; user-select: none; }
-.phase-config-order { font-size: 11px; font-weight: 700; color: var(--text-muted); min-width: 18px; text-align: center; }
+.phase-config-drag { color: var(--text-muted); font-size: 15px; cursor: grab; user-select: none; }
+.phase-config-order { font-size: 12px; font-weight: 700; color: var(--text-muted); min-width: 18px; text-align: center; }
 .phase-config-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.phase-config-name { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); }
+.phase-config-name { flex: 1; font-size: 14px; font-weight: 500; color: var(--text); }
 .phase-config-actions { display: flex; align-items: center; gap: 2px; }
-.phase-config-actions .btn-icon { font-size: 13px; padding: 2px 5px; }
+.phase-config-actions .btn-icon { font-size: 14px; padding: 2px 5px; }
 .btn-icon-danger { color: var(--rose, #ef4444); }
 .btn-icon-danger:hover { color: #dc2626; }
 .phase-config-add-row {
@@ -1704,7 +1704,7 @@ onMounted(() => {
 .phase-config-custom {
   margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-light);
 }
-.phase-config-custom-title { font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+.phase-config-custom-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
 .phase-config-custom-row { display: flex; align-items: center; gap: 8px; }
 .color-pick {
   width: 36px; height: 32px; border: 1px solid var(--border-light);

@@ -193,8 +193,8 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
             </svg>
           </div>
           <div class="brand-text">
-            <span class="brand-name">WorkLog</span>
-            <span class="brand-sub">工作日志管理</span>
+            <span class="brand-name">工作日志</span>
+            <span class="brand-sub">个人管理系统</span>
           </div>
         </div>
 
@@ -280,7 +280,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
           <button class="menu-btn" @click="sidebarOpen = !sidebarOpen">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
-          <span class="mobile-title">WorkLog</span>
+          <span class="mobile-title">工作日志</span>
         </div>
         <router-view />
       </main>
@@ -352,14 +352,14 @@ export default {
 
 .brand-name {
   color: var(--text-1);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .brand-sub {
   color: var(--text-4);
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 2px;
 }
 
@@ -380,7 +380,7 @@ export default {
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 500;
   color: var(--text-3);
   transition: all var(--t-fast);
@@ -422,7 +422,7 @@ export default {
   cursor: pointer;
   border-radius: var(--r-sm);
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 13px;
   font-family: var(--font);
   transition: all var(--t-fast);
 }
@@ -455,7 +455,7 @@ export default {
   background: none;
   cursor: pointer;
   border-radius: var(--r-sm);
-  font-size: 13px;
+  font-size: 14px;
   font-family: var(--font);
   color: var(--text-2);
   transition: all var(--t-fast);
@@ -484,7 +484,7 @@ export default {
 }
 
 .footer-text {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-4);
 }
 
@@ -510,7 +510,7 @@ export default {
   background: #fffbeb;
   border: 1px solid #fde68a;
   color: #92400e;
-  font-size: 12.5px;
+  font-size: 13.5px;
 }
 
 .main {
@@ -555,7 +555,7 @@ export default {
   }
   .menu-btn:hover { background: var(--bg-hover); }
   .mobile-title {
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 700;
     color: var(--text-1);
     letter-spacing: -0.02em;

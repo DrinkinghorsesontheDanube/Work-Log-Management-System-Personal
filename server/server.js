@@ -567,7 +567,7 @@ const server = http.createServer(async (req, res) => {
 })
 
 server.listen(PORT, HOST, () => {
-  console.log(`WorkLog 服务器已启动: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`)
+  console.log(`工作日志服务器已启动: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`)
   console.log(`  数据目录: ${DATA_DIR}`)
   console.log(`  前端目录: ${DIST}`)
   if (!fs.existsSync(path.join(DIST, 'index.html'))) {

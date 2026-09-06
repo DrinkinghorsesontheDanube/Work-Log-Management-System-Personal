@@ -632,7 +632,7 @@ onMounted(() => {
   line-height: 1;
 }
 .stat-lbl {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   margin-top: 4px;
 }
@@ -675,7 +675,7 @@ onMounted(() => {
 .search-input {
   width: 100%;
   padding: 7px 12px 7px 34px;
-  font-size: 13px;
+  font-size: 14px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
   background: var(--bg-card);
@@ -693,7 +693,7 @@ onMounted(() => {
 
 .filter-select {
   padding: 7px 10px;
-  font-size: 13px;
+  font-size: 14px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
   background: var(--bg-card);
@@ -746,7 +746,7 @@ onMounted(() => {
 }
 
 .client-name {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text);
   overflow: hidden;
@@ -762,7 +762,7 @@ onMounted(() => {
 }
 
 .contacts-count-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 10px;
@@ -772,7 +772,7 @@ onMounted(() => {
 }
 
 .imp-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 4px;
@@ -794,7 +794,7 @@ onMounted(() => {
 
 .role-badge {
   display: inline-block;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 1px 6px;
   border-radius: 4px;
@@ -823,7 +823,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   padding: 3px 10px;
   border-radius: var(--radius-full);
@@ -870,7 +870,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
 }
 .info-item svg {
@@ -903,7 +903,7 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 .meta-overdue {
@@ -936,7 +936,7 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 .contacts-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text);
 }
@@ -955,7 +955,7 @@ onMounted(() => {
   min-height: 28px;
 }
 .contact-entry-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -968,7 +968,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-secondary);
   cursor: pointer;
   margin: 0;
@@ -994,7 +994,7 @@ onMounted(() => {
 
 .btn-sm {
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: 13px;
 }
 .btn-outline {
   background: transparent;
@@ -1026,7 +1026,7 @@ onMounted(() => {
 }
 .form-field label {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 5px;
@@ -1076,7 +1076,7 @@ onMounted(() => {
   margin-bottom: 6px;
 }
 .confirm-desc {
-  font-size: 13px;
+  font-size: 14px;
   color: #64748b;
   line-height: 1.6;
   margin-bottom: 24px;
@@ -1089,7 +1089,7 @@ onMounted(() => {
   flex: 1;
   padding: 10px 0;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
   border: none;

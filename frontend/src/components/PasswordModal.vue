@@ -89,19 +89,19 @@ async function submit() {
   width: 380px; max-width: 92vw;
   box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.18);
 }
-.pm-title { font-size: 16px; font-weight: 600; color: var(--text-1, #0f172a); margin-bottom: 6px; }
-.pm-hint { font-size: 12px; color: var(--text-4, #94a3b8); line-height: 1.6; margin: 0 0 16px; }
+.pm-title { font-size: 17px; font-weight: 600; color: var(--text-1, #0f172a); margin-bottom: 6px; }
+.pm-hint { font-size: 13px; color: var(--text-4, #94a3b8); line-height: 1.6; margin: 0 0 16px; }
 .pm-input {
   width: 100%; padding: 10px 12px; margin-bottom: 10px;
   border: 1px solid var(--border, #e2e8f0); border-radius: 8px;
   background: var(--bg, #fff); color: var(--text-1, #0f172a);
-  font-size: 13.5px; outline: none; box-sizing: border-box;
+  font-size: 14.5px; outline: none; box-sizing: border-box;
 }
 .pm-input:focus { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12); }
 .pm-btns { display: flex; gap: 10px; margin-top: 6px; }
 .pm-btn {
   flex: 1; padding: 10px 0; border-radius: 10px;
-  font-size: 14px; font-weight: 500; cursor: pointer; border: none;
+  font-size: 15px; font-weight: 500; cursor: pointer; border: none;
   transition: opacity 0.15s;
 }
 .pm-cancel { background: var(--bg-hover, #f1f5f9); color: var(--text-2, #475569); border: 1px solid var(--border-light, #e2e8f0); }

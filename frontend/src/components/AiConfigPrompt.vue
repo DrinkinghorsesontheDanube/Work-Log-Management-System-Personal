@@ -84,7 +84,7 @@ defineExpose({ show })
   margin: 0 0 8px;
 }
 .ai-prompt-desc {
-  font-size: 13px; color: var(--text-secondary, #475569);
+  font-size: 14px; color: var(--text-secondary, #475569);
   margin: 0 0 20px; line-height: 1.6;
 }
 .ai-prompt-steps {
@@ -97,14 +97,14 @@ defineExpose({ show })
 .ai-step {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 0;
-  font-size: 13px; color: var(--text, #1e293b);
+  font-size: 14px; color: var(--text, #1e293b);
 }
 .ai-step-num {
   width: 22px; height: 22px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 50%;
   background: var(--primary, #6366f1);
-  color: #fff; font-size: 11px; font-weight: 700;
+  color: #fff; font-size: 12px; font-weight: 700;
   flex-shrink: 0;
 }
 .ai-prompt-actions {
@@ -113,7 +113,7 @@ defineExpose({ show })
 .ai-prompt-btn {
   padding: 10px 24px;
   border-radius: 10px;
-  font-size: 14px; font-weight: 600;
+  font-size: 15px; font-weight: 600;
   cursor: pointer; border: none;
   transition: all 0.15s;
 }

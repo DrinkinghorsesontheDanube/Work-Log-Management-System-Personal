@@ -284,7 +284,7 @@ onMounted(() => {
 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
 .stat-card { text-align: center; padding: 16px 12px; }
 .stat-val { font-size: 24px; font-weight: 700; color: var(--text); }
-.stat-lbl { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.stat-lbl { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
 .stat-urgent .stat-val { color: var(--rose); }
 
 .toolbar { margin-bottom: 14px; }
@@ -298,13 +298,13 @@ onMounted(() => {
 }
 .col-header { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
 .col-dot { width: 9px; height: 9px; border-radius: 50%; }
-.col-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.col-title { font-size: 14px; font-weight: 600; color: var(--text); }
 .col-count {
-  margin-left: auto; font-size: 11.5px; color: var(--text-muted);
+  margin-left: auto; font-size: 12.5px; color: var(--text-muted);
   background: var(--bg-hover); border-radius: var(--radius-full); padding: 1px 8px;
 }
 .col-body { display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
-.col-empty { text-align: center; color: var(--text-muted); font-size: 12px; padding: 16px 0; }
+.col-empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 16px 0; }
 
 .opp-card {
   position: relative;
@@ -313,22 +313,22 @@ onMounted(() => {
   cursor: pointer; transition: border-color var(--t-fast);
 }
 .opp-card:hover { border-color: var(--primary); }
-.opp-name { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; padding-right: 16px; }
-.opp-amount { font-size: 12.5px; font-weight: 600; color: var(--primary-hover, var(--primary)); margin-top: 3px; }
-.opp-client { font-size: 11.5px; color: var(--text-secondary); margin-top: 3px; }
+.opp-name { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.4; padding-right: 16px; }
+.opp-amount { font-size: 13.5px; font-weight: 600; color: var(--primary-hover, var(--primary)); margin-top: 3px; }
+.opp-client { font-size: 12.5px; color: var(--text-secondary); margin-top: 3px; }
 .opp-date {
   display: flex; align-items: center; gap: 4px;
-  font-size: 11.5px; color: var(--text-muted); margin-top: 5px;
+  font-size: 12.5px; color: var(--text-muted); margin-top: 5px;
 }
 .opp-date.dl-overdue { color: var(--rose); font-weight: 600; }
 .opp-date.dl-urgent { color: var(--rose); }
 .opp-date.dl-warning { color: var(--amber); font-weight: 500; }
-.opp-comp { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.opp-comp { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 .opp-del {
   position: absolute; top: 6px; right: 6px;
   width: 18px; height: 18px; line-height: 1;
   border: none; background: none; cursor: pointer;
-  color: var(--text-muted); font-size: 14px; border-radius: 4px;
+  color: var(--text-muted); font-size: 15px; border-radius: 4px;
   opacity: 0; transition: opacity var(--t-fast);
 }
 .opp-card:hover .opp-del { opacity: 1; }
@@ -350,11 +350,11 @@ onMounted(() => {
   display: flex; align-items: center; justify-content: space-between;
   padding: 18px 22px 0;
 }
-.modal-header h3 { font-size: 16px; color: var(--text); }
+.modal-header h3 { font-size: 17px; color: var(--text); }
 .btn-icon { border: none; background: none; font-size: 20px; cursor: pointer; color: var(--text-muted); }
 .modal-body { padding: 16px 22px; overflow-y: auto; }
 .form-field { margin-bottom: 12px; flex: 1; }
-.form-field label { display: block; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 5px; }
+.form-field label { display: block; font-size: 13.5px; color: var(--text-secondary); margin-bottom: 5px; }
 .required { color: var(--rose); }
 .form-row { display: flex; gap: 12px; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 0 22px 18px; }

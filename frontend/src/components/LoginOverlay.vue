@@ -36,8 +36,8 @@ async function submit() {
           <rect x="2" y="2" width="28" height="28" rx="9" fill="#0d9488"/>
           <path d="M10 16h12M16 10v12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
         </svg>
-        <h1>WorkLog</h1>
-        <p>工作日志管理系统</p>
+        <h1>工作日志</h1>
+        <p>个人工作管理系统</p>
       </div>
 
       <div class="login-field">
@@ -133,7 +133,7 @@ async function submit() {
 }
 .login-brand p {
   margin: 5px 0 0;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--text-muted, #94a3b8);
   letter-spacing: 0.02em;
 }
@@ -159,7 +159,7 @@ async function submit() {
   border-radius: 12px;
   background: var(--bg, #fff);
   color: var(--text-1, #1e293b);
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
   box-sizing: border-box;
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -172,7 +172,7 @@ async function submit() {
 
 .login-error {
   margin: 0 0 4px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--rose, #ef4444);
   text-align: center;
 }
@@ -185,7 +185,7 @@ async function submit() {
   border-radius: 12px;
   background: linear-gradient(135deg, #14b8a6 0%, #0d9488 60%, #0f766e 100%);
   color: #fff;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.04em;
   cursor: pointer;

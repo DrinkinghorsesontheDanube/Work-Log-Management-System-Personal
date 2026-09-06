@@ -598,7 +598,7 @@ onBeforeUnmount(() => {
 }
 
 .status-badge {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -608,7 +608,7 @@ onBeforeUnmount(() => {
 
 .form-field label {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 5px;
@@ -623,13 +623,13 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   margin-top: 5px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   line-height: 1.4;
 }
 
 .recommend-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 1px 6px;
   flex-shrink: 0;
@@ -678,7 +678,7 @@ onBeforeUnmount(() => {
   margin-top: 10px;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -695,7 +695,7 @@ onBeforeUnmount(() => {
 }
 
 .phase-count {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
@@ -728,7 +728,7 @@ onBeforeUnmount(() => {
 }
 
 .phase-drag-handle {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-placeholder);
   cursor: grab;
   user-select: none;
@@ -768,13 +768,13 @@ onBeforeUnmount(() => {
 
 .phase-name {
   flex: 1;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text);
 }
 
 .phase-order {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 
@@ -794,7 +794,7 @@ onBeforeUnmount(() => {
 }
 
 .reset-btn {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
@@ -852,13 +852,13 @@ onBeforeUnmount(() => {
 }
 
 .stat-sub {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-muted);
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   margin-top: 2px;
 }
@@ -898,14 +898,14 @@ onBeforeUnmount(() => {
 }
 
 .data-item-info strong {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   display: block;
   margin-bottom: 1px;
 }
 
 .data-item-info p {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   margin: 0;
 }

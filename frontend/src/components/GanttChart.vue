@@ -159,12 +159,12 @@ const monthHeaders = computed(() => {
 .gantt-sidebar { flex-shrink: 0; width: 140px; border-right: 1px solid var(--border); position: sticky; left: 0; z-index: 2; background: var(--bg-card); }
 .sidebar-header {
   height: 52px; display: flex; align-items: center; padding: 0 10px;
-  font-size: 12px; font-weight: 600; color: var(--text-muted);
+  font-size: 13px; font-weight: 600; color: var(--text-muted);
   background: var(--bg); border-bottom: 1px solid var(--border);
 }
 .sidebar-task {
   height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 10px;
-  border-bottom: 1px solid var(--border-light); font-size: 12px;
+  border-bottom: 1px solid var(--border-light); font-size: 13px;
 }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .status-dot.pending { background: #94a3b8; }
@@ -176,13 +176,13 @@ const monthHeaders = computed(() => {
 .month-row { display: flex; }
 .month-cell {
   height: 26px; display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
   border-right: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light);
 }
 .day-row { display: flex; }
 .day-cell {
   height: 26px; display: flex; align-items: center; justify-content: center;
-  font-size: 10px; color: var(--text-muted);
+  font-size: 11px; color: var(--text-muted);
   border-right: 1px solid var(--border-light);
 }
 .timeline-body { position: relative; }
@@ -197,7 +197,7 @@ const monthHeaders = computed(() => {
   position: absolute; top: 0; left: 0; height: 100%;
   background: rgba(255, 255, 255, 0.25); border-radius: 4px 0 0 4px;
 }
-.bar-label { position: relative; font-size: 11px; font-weight: 600; color: #fff; z-index: 1; }
+.bar-label { position: relative; font-size: 12px; font-weight: 600; color: #fff; z-index: 1; }
 .bar-actual {
   position: absolute; top: 14px; height: 12px; border-radius: 3px;
   background: rgba(251, 146, 60, 0.7); pointer-events: none;

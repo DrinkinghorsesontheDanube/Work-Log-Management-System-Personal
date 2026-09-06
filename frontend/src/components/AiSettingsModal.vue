@@ -293,7 +293,7 @@ defineExpose({ show })
 }
 
 .ais-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--text, #0f172a);
   margin: 0 0 2px;
@@ -302,7 +302,7 @@ defineExpose({ show })
 .ais-status {
   display: inline-flex;
   align-items: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 10px;
@@ -351,7 +351,7 @@ defineExpose({ show })
 }
 
 .ais-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary, #475569);
   margin-bottom: 6px;
@@ -374,13 +374,13 @@ defineExpose({ show })
   align-items: center;
   gap: 6px;
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted, #94a3b8);
   line-height: 1.4;
 }
 
 .ais-recommend {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   padding: 1px 7px;
   border-radius: 6px;
@@ -429,7 +429,7 @@ defineExpose({ show })
 .ais-test-result {
   padding: 10px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -466,7 +466,7 @@ defineExpose({ show })
   display: flex; align-items: center; gap: 6px;
   padding: 8px 14px; border-radius: 8px;
   background: #dcfce7; color: #16a34a;
-  font-size: 13px; font-weight: 500;
+  font-size: 14px; font-weight: 500;
 }
 .save-fade-enter-active, .save-fade-leave-active { transition: all 0.3s ease; }
 .save-fade-enter-from, .save-fade-leave-to { opacity: 0; transform: translateY(-4px); }

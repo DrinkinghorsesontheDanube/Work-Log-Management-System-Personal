@@ -101,23 +101,23 @@ function purge(entry: DeletedEntry) {
   display: flex; flex-direction: column;
   box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.18);
 }
-.tm-title { font-size: 16px; font-weight: 600; color: var(--text-1, #0f172a); }
-.tm-hint { font-size: 12px; color: var(--text-4, #94a3b8); margin: 6px 0 14px; }
+.tm-title { font-size: 17px; font-weight: 600; color: var(--text-1, #0f172a); }
+.tm-hint { font-size: 13px; color: var(--text-4, #94a3b8); margin: 6px 0 14px; }
 .tm-list { overflow-y: auto; flex: 1; min-height: 80px; }
-.tm-empty { text-align: center; color: var(--text-4, #94a3b8); font-size: 13px; padding: 32px 0; }
+.tm-empty { text-align: center; color: var(--text-4, #94a3b8); font-size: 14px; padding: 32px 0; }
 .tm-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 9px 10px; border-radius: 8px; font-size: 13px;
+  padding: 9px 10px; border-radius: 8px; font-size: 14px;
 }
 .tm-item:hover { background: var(--bg-hover, #f1f5f9); }
 .tm-type {
-  flex-shrink: 0; font-size: 11px; padding: 2px 8px; border-radius: 10px;
+  flex-shrink: 0; font-size: 12px; padding: 2px 8px; border-radius: 10px;
   background: var(--primary-light, #eef2ff); color: var(--primary-dark, #4f46e5);
 }
 .tm-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-1, #0f172a); }
-.tm-days { flex-shrink: 0; font-size: 11px; color: var(--text-4, #94a3b8); }
+.tm-days { flex-shrink: 0; font-size: 12px; color: var(--text-4, #94a3b8); }
 .tm-btn {
-  flex-shrink: 0; padding: 4px 10px; border-radius: 6px; font-size: 12px;
+  flex-shrink: 0; padding: 4px 10px; border-radius: 6px; font-size: 13px;
   border: 1px solid var(--border, #e2e8f0); background: var(--bg-card, #fff);
   color: var(--text-2, #475569); cursor: pointer;
 }
@@ -125,7 +125,7 @@ function purge(entry: DeletedEntry) {
 .tm-danger:hover { border-color: #ef4444; color: #ef4444; }
 .tm-footer { display: flex; justify-content: flex-end; padding-top: 12px; }
 .tm-close {
-  padding: 8px 20px; border-radius: 8px; font-size: 13px;
+  padding: 8px 20px; border-radius: 8px; font-size: 14px;
   border: 1px solid var(--border-light, #e2e8f0); background: var(--bg-hover, #f1f5f9);
   color: var(--text-2, #475569); cursor: pointer;
 }
