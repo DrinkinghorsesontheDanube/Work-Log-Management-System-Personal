@@ -39,10 +39,8 @@ const todayFormatted = new Date().toLocaleDateString('zh-CN', {
 
 const clientCount = computed(() => clientsStore.clients.length)
 const projectCount = computed(() => projectsStore.projects.length)
-const activeProjectCount = computed(() => projectsStore.projects.filter(p => p.status === 'in_progress').length)
 const logCount = computed(() => workLogsStore.workLogs.length)
 const todoCount = computed(() => todosStore.todos.length)
-const pendingTodoCount = computed(() => todosStore.todos.filter(t => t.status !== 'completed').length)
 const activeProjects = computed(() => projectsStore.projects.filter(p => p.status === 'in_progress'))
 
 const today = () => todayStr()
@@ -233,7 +231,6 @@ watch(() => route.path, () => {
         <div class="stat-card" @click="router.push('/projects')">
           <span class="stat-num">{{ projectCount }}</span>
           <span class="stat-label">项目</span>
-          <span class="stat-sub">{{ activeProjectCount }} 进行中</span>
         </div>
         <div class="stat-card" @click="router.push('/calendar')">
           <span class="stat-num">{{ logCount }}</span>
@@ -242,7 +239,6 @@ watch(() => route.path, () => {
         <div class="stat-card" @click="router.push('/todos')">
           <span class="stat-num">{{ todoCount }}</span>
           <span class="stat-label">待办</span>
-          <span class="stat-sub">{{ pendingTodoCount }} 待处理</span>
         </div>
       </div>
 
@@ -561,11 +557,6 @@ watch(() => route.path, () => {
   font-size: 13px;
   color: var(--text-muted);
   margin-top: 6px;
-}
-.stat-sub {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 2px;
 }
 @media (max-width: 600px) { .stats-bar { grid-template-columns: repeat(2, 1fr); } }
 
